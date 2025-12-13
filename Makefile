@@ -70,9 +70,11 @@ endif
 
 .PHONY: build-and-push-separate
 build-and-push-separate: ## Build and push with separate tags per architecture
+ifneq ($(wildcard ${CACHE_PATH}/firstinit),)
 	@echo "Building and pushing $(IMAGE) with architecture-specific tags..."
 	docker buildx build \
 		--platform linux/amd64 \
+		--cache-to=type=local,dest=${CACHE_PATH}  \
 		$(BUILD_ARGS) \
 		-t $(IMAGE):$(VERSION)-amd64 \
 		-t $(IMAGE):latest-amd64 \
@@ -80,13 +82,34 @@ build-and-push-separate: ## Build and push with separate tags per architecture
 		.
 	docker buildx build \
 		--platform linux/arm64 \
+		--cache-to=type=local,dest=${CACHE_PATH}  \
 		$(BUILD_ARGS) \
 		-t $(IMAGE):$(VERSION)-arm64 \
 		-t $(IMAGE):latest-arm64 \
 		--push \
 		.
-
-
+	@rm -f ${CACHE_PATH}/firstinit
+else
+	@echo "Building and pushing $(IMAGE) with architecture-specific tags using cache..."
+	docker buildx build \
+		--platform linux/amd64 \
+		--cache-from=type=local,src=${CACHE_PATH} \
+		--cache-to=type=local,dest=${CACHE_PATH}  \
+		$(BUILD_ARGS) \
+		-t $(IMAGE):$(VERSION)-amd64 \
+		-t $(IMAGE):latest-amd64 \
+		--push \
+		.
+	docker buildx build \
+		--platform linux/arm64 \
+		--cache-from=type=local,src=${CACHE_PATH} \
+		--cache-to=type=local,dest=${CACHE_PATH}  \
+		$(BUILD_ARGS) \
+		-t $(IMAGE):$(VERSION)-arm64 \
+		-t $(IMAGE):latest-arm64 \
+		--push \
+		.
+endif
 
 .PHONY: publish
 publish:check_certificate check_cache setup-buildx$(EXTRA_CONF) login build-and-push-separate ## Publish with separate architecture tags
