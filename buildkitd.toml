@@ -1,0 +1,4 @@
+[registry."docker.io"]
+  ca=["/certificate.pem"]
+
+
