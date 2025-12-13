@@ -1,2 +1,3 @@
 **/cache/*
 certificate.pem
+buildkitd.toml

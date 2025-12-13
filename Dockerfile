@@ -2,6 +2,8 @@ ARG DIND_VERSION="29.0.4-dind-alpine3.22"
 
 FROM docker:${DIND_VERSION}
 
+ARG DIND_VERSION
+
 LABEL maintainer="Daniel Dalavurak"
 LABEL org="Polar Team"
 LABEL dind_version=${DIND_VERSION}
