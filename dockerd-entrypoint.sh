@@ -8,7 +8,7 @@ _configure_git() {
   local git_url="$3"
   shift
 
-  git config --global url."https://$1:$2@$3".insteadOf "https://$3"
+  git config --global url."https://${git_user}:${git_password}@${git_url}".insteadOf "https://${git_url}"
 }
 
 # shellcheck disable=SC3043
