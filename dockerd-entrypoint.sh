@@ -210,11 +210,11 @@ else
   set -- docker-entrypoint.sh "$@"
 fi
 
-if [ -f "/certificate.pem" ]; then
-  echo "Adding custom certificate to CA bundle..."
-  cat /certificate.pem >>/etc/ssl/certs/ca-certificates.crt
-  echo "Custom certificate added successfully"
-fi
+# if [ -f "/certificate.pem" ]; then
+#   echo "Adding custom certificate to CA bundle..."
+#   cat /certificate.pem >>/etc/ssl/certs/ca-certificates.crt
+#   echo "Custom certificate added successfully"
+# fi
 
 i=1
 max_attempts=100 # Prevent infinite loop
