@@ -47,7 +47,7 @@ RUN adduser -D -u 1000 -G docker -s /bin/bash ansible
 RUN mkdir -p /home/ansible/.ansible/roles \
   /home/ansible/.ansible/collections \
   /home/ansible/.ansible/tmp && \
-  chown -R ansible:ansible /home/ansible && \
+  chown -R ansible:docker /home/ansible/.ansible && \
   chmod -R 755 /home/ansible
 
 # Create working directory
