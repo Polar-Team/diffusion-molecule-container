@@ -26,6 +26,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create empty certificate file
+        run: touch certificate.pem
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
