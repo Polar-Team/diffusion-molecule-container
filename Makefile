@@ -4,7 +4,8 @@
 REGISTRY := ghcr.io
 ORG := polar-team
 IMAGE_NAME := diffusion-molecule-container
-DIND_VERSION := 29.0.4-dind-alpine3.22
+# DIND_VERSION can be overridden: make publish DIND_VERSION=29.0.5-dind-alpine3.22
+DIND_VERSION ?= 29.0.4-dind-alpine3.22
 CACHE_PATH ?= ./cache
 EXTRA_CONF :=
 ifneq ($(wildcard /buildkitd.toml),)
@@ -144,6 +145,7 @@ clean: ## Remove buildx builder
 .PHONY: show-platforms
 show-platforms: ## Show configured platforms
 	@echo "Configured platforms: $(PLATFORMS)"
+	@echo "DIND Version: $(DIND_VERSION)"
 	@echo "Image: $(IMAGE):$(VERSION)"
 	@echo ""
 	@echo "Manifest list tags:"
@@ -155,6 +157,9 @@ show-platforms: ## Show configured platforms
 	@echo "  - $(IMAGE):latest-amd64"
 	@echo "  - $(IMAGE):$(VERSION)-arm64"
 	@echo "  - $(IMAGE):latest-arm64"
+	@echo ""
+	@echo "Override DIND version:"
+	@echo "  make publish DIND_VERSION=29.0.5-dind-alpine3.22"
 
 # Default target
 .DEFAULT_GOAL := help
