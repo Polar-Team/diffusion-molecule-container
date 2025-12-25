@@ -14,6 +14,9 @@ LABEL org.label-schema.dind-version=${DIND_VERSION}
 LABEL org.label-schema.python-version=${PYTHON_VERSION}
 LABEL org.label-schema.additional-python-versions=${ADDITIONAL_PYTHON_VERSIONS}
 
+# Set shell with pipefail for all RUN commands
+SHELL ["/bin/sh", "-o", "pipefail", "-c"]
+
 # Install system dependencies and build tools for pyenv
 RUN apk add --no-cache --update \
   libffi-dev \
@@ -43,14 +46,12 @@ RUN apk add --no-cache --update \
 # Install pyenv
 ENV PYENV_ROOT="/root/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
-SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN curl -fsSL https://pyenv.run | bash && \
   echo "eval \"\$(pyenv init -)\"" >> ~/.bashrc
 
 # Install uv (fast Python package installer and manager)
 # Copy certificate first as uv installation might need it
 COPY certificate.pem /
-SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN if [ -f "/certificate.pem" ]; then \
     cat /certificate.pem >> /etc/ssl/certs/ca-certificates.crt; \
   else \
