@@ -1,3 +1,4 @@
 **/cache/*
 certificate.pem
 buildkitd.toml
+dev-new-features/*
