@@ -1,0 +1,16 @@
+[project]
+name = "diffusion-molecule-container"
+version = "1.0.0"
+description = "Docker-in-Docker container for Ansible Molecule testing"
+requires-python = ">=3.9"
+dependencies = [
+    "ansible>=10.0.0",
+    "ansible-lint>=24.0.0",
+    "molecule>=24.0.0",
+    "molecule-plugins[docker]>=23.5.0",
+    "yamllint>=1.35.0",
+]
+
+[tool.uv.sources]
+# Use latest molecule from main branch
+molecule = { git = "https://github.com/ansible-community/molecule", branch = "main" }

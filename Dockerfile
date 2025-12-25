@@ -1,21 +1,35 @@
 ARG DIND_VERSION="29.0.4-dind-alpine3.22"
+ARG PYTHON_VERSION="3.13.0"
+ARG ADDITIONAL_PYTHON_VERSIONS=""
 
 FROM docker:${DIND_VERSION}
 
 ARG DIND_VERSION
+ARG PYTHON_VERSION
+ARG ADDITIONAL_PYTHON_VERSIONS
 
 LABEL maintainer="Daniel Dalavurak"
 LABEL org="Polar Team"
 LABEL dind_version=${DIND_VERSION}
+LABEL python_version=${PYTHON_VERSION}
+LABEL additional_python_versions=${ADDITIONAL_PYTHON_VERSIONS}
 
-# Install system dependencies
+# Install system dependencies and build tools for pyenv
 RUN apk add --no-cache --update \
-  python3 \
-  py3-pip \
   libffi-dev \
   git \
-  yamllint \
-  ansible-lint && \
+  curl \
+  bash \
+  gcc \
+  musl-dev \
+  make \
+  openssl-dev \
+  bzip2-dev \
+  zlib-dev \
+  readline-dev \
+  sqlite-dev \
+  xz-dev \
+  tk-dev && \
   apk upgrade --available && \
   # Clean up unnecessary files to reduce image size
   rm -rf /var/cache/apk/* \
@@ -27,23 +41,64 @@ RUN apk add --no-cache --update \
   /usr/lib/libzpool.so* \
   /usr/lib/libzfs.so* || true
 
-# Copy certificate if it exists and configure git/pip
+# Install pyenv
+ENV PYENV_ROOT="/root/.pyenv"
+ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
+RUN curl https://pyenv.run | bash && \
+  echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+
+# Install uv (fast Python package installer and manager)
+# Copy certificate first as uv installation might need it
 COPY certificate.pem /
 RUN [ -f "/certificate.pem" ] && cat /certificate.pem >> \
   /etc/ssl/certs/ca-certificates.crt || echo "No custom certificate provided" && \
-  # Configure git and Python pip (SSL verification disabled for corporate proxy environments)
+  # Configure git (SSL verification disabled for corporate proxy environments)
   git config --global http.sslverify false && \
-  python3 -m pip config set global.cert /etc/ssl/certs/ca-certificates.crt
+  # Download and install uv binary directly
+  mkdir -p /root/.cargo/bin && \
+  curl -LsSf https://github.com/astral-sh/uv/releases/download/0.5.11/uv-x86_64-unknown-linux-musl.tar.gz -o /tmp/uv.tar.gz && \
+  tar -xzf /tmp/uv.tar.gz -C /tmp && \
+  mv /tmp/uv-x86_64-unknown-linux-musl/uv /root/.cargo/bin/uv && \
+  chmod +x /root/.cargo/bin/uv && \
+  rm -rf /tmp/uv.tar.gz /tmp/uv-x86_64-unknown-linux-musl
 
-# Install Ansible Molecule and Docker plugin
-# Using --break-system-packages due to Alpine's PEP 668 restrictions
-RUN python3 -m pip install --no-cache-dir --break-system-packages -U \
-  git+https://github.com/ansible-community/molecule@main && \
-  python3 -m pip install --no-cache-dir --break-system-packages molecule-plugins[docker] && \
-  # Clean up pip cache and temporary files
-  rm -rf /root/.cache/pip \
+# Add uv to PATH for subsequent RUN commands
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# Create uv project directory and copy files
+RUN mkdir -p /opt/uv
+COPY pyproject.toml /opt/uv/
+COPY molecule-wrapper.sh /usr/local/bin/molecule-wrapper.sh
+
+# Install Python using pyenv and dependencies using uv
+# pyenv compiles Python from source (works on musl)
+# uv manages packages (fast and modern)
+RUN eval "$(pyenv init -)" && \
+  # Install primary Python version
+  pyenv install ${PYTHON_VERSION} && \
+  pyenv global ${PYTHON_VERSION} && \
+  # Install additional Python versions if specified (space-separated)
+  if [ -n "${ADDITIONAL_PYTHON_VERSIONS}" ]; then \
+    for version in ${ADDITIONAL_PYTHON_VERSIONS}; do \
+      echo "Installing additional Python version: $version" && \
+      pyenv install $version; \
+    done; \
+  fi && \
+  # Verify installation
+  python --version && uv --version && \
+  cd /opt/uv && \
+  uv venv /opt/uv/.venv --python $(pyenv which python) && \
+  uv pip install --python /opt/uv/.venv/bin/python -r pyproject.toml && \
+  # Make wrapper executable and create molecule alias
+  chmod +x /usr/local/bin/molecule-wrapper.sh && \
+  ln -sf /usr/local/bin/molecule-wrapper.sh /usr/local/bin/molecule && \
+  # Clean up cache and temporary files
+  rm -rf /root/.cache \
   /tmp/* \
   /var/tmp/*
+
+# Add venv to PATH so tools are available globally
+ENV PATH="/opt/uv/.venv/bin:$PATH"
 
 # Create docker group, ansible user, and setup directories
 RUN addgroup -g 999 docker || true && \
