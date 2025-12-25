@@ -6,6 +6,10 @@ ORG := polar-team
 IMAGE_NAME := diffusion-molecule-container
 # DIND_VERSION can be overridden: make publish DIND_VERSION=29.0.5-dind-alpine3.22
 DIND_VERSION ?= 29.0.4-dind-alpine3.22
+# PYTHON_VERSION can be overridden: make publish PYTHON_VERSION=3.13.0
+PYTHON_VERSION ?= 3.13.0
+# ADDITIONAL_PYTHON_VERSIONS can be overridden: make publish ADDITIONAL_PYTHON_VERSIONS="3.12.0 3.11.0"
+ADDITIONAL_PYTHON_VERSIONS ?=
 CACHE_PATH ?= ./cache
 EXTRA_CONF :=
 ifneq ($(wildcard /buildkitd.toml),)
@@ -26,7 +30,10 @@ IMAGE := $(REGISTRY)/$(ORG)/$(IMAGE_NAME)
 PLATFORMS := linux/amd64,linux/arm64
 
 # Build arguments
-BUILD_ARGS := --build-arg DIND_VERSION=$(DIND_VERSION)
+BUILD_ARGS := --build-arg DIND_VERSION=$(DIND_VERSION) --build-arg PYTHON_VERSION=$(PYTHON_VERSION)
+ifneq ($(ADDITIONAL_PYTHON_VERSIONS),)
+BUILD_ARGS += --build-arg ADDITIONAL_PYTHON_VERSIONS="$(ADDITIONAL_PYTHON_VERSIONS)"
+endif
 
 .PHONY: help
 help: ## Show this help message
@@ -137,15 +144,53 @@ test-local: ## Build and test image locally for current platform
 	@echo "Testing image..."
 	docker run --rm $(IMAGE):test molecule --version
 
+.PHONY: build-local
+build-local: check_certificate ## Build image locally for current platform
+	@echo "Building local image for testing..."
+	docker build $(BUILD_ARGS) -t $(IMAGE_NAME):local .
+	@echo "Image built: $(IMAGE_NAME):local"
+	@echo "Test with: docker run --rm $(IMAGE_NAME):local molecule --version"
+
+.PHONY: build-and-save
+build-and-save: check_certificate ## Build and save image to tar file for testing
+	@echo "Building and saving image to local repository..."
+	docker build $(BUILD_ARGS) -t $(IMAGE_NAME):local .
+	@mkdir -p ./images
+	docker save $(IMAGE_NAME):local -o ./images/$(IMAGE_NAME)-local.tar
+	@echo "Image saved to: ./images/$(IMAGE_NAME)-local.tar"
+	@echo "Load with: docker load -i ./images/$(IMAGE_NAME)-local.tar"
+
+.PHONY: load-local
+load-local: ## Load saved image from tar file
+	@echo "Loading image from local repository..."
+	@if [ -f ./images/$(IMAGE_NAME)-local.tar ]; then \
+		docker load -i ./images/$(IMAGE_NAME)-local.tar; \
+		echo "Image loaded: $(IMAGE_NAME):local"; \
+	else \
+		echo "Error: ./images/$(IMAGE_NAME)-local.tar not found"; \
+		echo "Run 'make build-and-save' first"; \
+		exit 1; \
+	fi
+
 .PHONY: clean
 clean: ## Remove buildx builder
 	@echo "Cleaning up buildx builder..."
 	-docker buildx rm multiplatform-builder
 
+.PHONY: clean-local
+clean-local: ## Remove local images and saved tar files
+	@echo "Cleaning up local images..."
+	-docker rmi $(IMAGE_NAME):local
+	-docker rmi $(IMAGE):test
+	@echo "Cleaning up saved images..."
+	-rm -rf ./images
+	@echo "Local cleanup complete"
+
 .PHONY: show-platforms
 show-platforms: ## Show configured platforms
 	@echo "Configured platforms: $(PLATFORMS)"
 	@echo "DIND Version: $(DIND_VERSION)"
+	@echo "Python Version: $(PYTHON_VERSION)"
 	@echo "Image: $(IMAGE):$(VERSION)"
 	@echo ""
 	@echo "Manifest list tags:"
@@ -158,8 +203,9 @@ show-platforms: ## Show configured platforms
 	@echo "  - $(IMAGE):$(VERSION)-arm64"
 	@echo "  - $(IMAGE):latest-arm64"
 	@echo ""
-	@echo "Override DIND version:"
+	@echo "Override versions:"
 	@echo "  make publish DIND_VERSION=29.0.5-dind-alpine3.22"
+	@echo "  make publish PYTHON_VERSION=3.13"
 
 # Default target
 .DEFAULT_GOAL := help

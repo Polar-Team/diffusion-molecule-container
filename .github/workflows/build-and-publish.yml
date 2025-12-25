@@ -10,6 +10,7 @@ env:
   REGISTRY: ghcr.io
   ORG: polar-team
   IMAGE_NAME: diffusion-molecule-container
+  PYTHON_VERSION: "3.13.0"
 
 jobs:
   build-and-push:
@@ -75,6 +76,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
           build-args: |
             DIND_VERSION=29.0.4-dind-alpine3.22
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
 
   create-manifest:
     runs-on: ubuntu-latest
