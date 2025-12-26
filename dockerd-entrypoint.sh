@@ -210,12 +210,6 @@ else
   set -- docker-entrypoint.sh "$@"
 fi
 
-# if [ -f "/certificate.pem" ]; then
-#   echo "Adding custom certificate to CA bundle..."
-#   cat /certificate.pem >>/etc/ssl/certs/ca-certificates.crt
-#   echo "Custom certificate added successfully"
-# fi
-
 i=1
 max_attempts=100 # Prevent infinite loop
 while [ "${i}" -le "${max_attempts}" ]; do
@@ -239,26 +233,5 @@ while [ "${i}" -le "${max_attempts}" ]; do
 
   i=$((i + 1))
 done
-
-# Handle pyproject.toml configuration passed from diffusion
-if [ -n "${PYPROJECT_TOML_CONTENT:-}" ]; then
-  echo "Applying custom pyproject.toml configuration from diffusion..."
-  # Decode base64 content and write to /opt/uv/pyproject.toml
-  echo "${PYPROJECT_TOML_CONTENT}" | base64 -d >/opt/uv/pyproject.toml
-  if [ $? -eq 0 ]; then
-    echo "Custom pyproject.toml applied successfully"
-    # Reinstall dependencies with new configuration
-    echo "Reinstalling Python dependencies..."
-    cd /opt/uv
-    /root/.cargo/bin/uv pip install --python /opt/uv/.venv/bin/python -r pyproject.toml
-    if [ $? -eq 0 ]; then
-      echo "Dependencies reinstalled successfully"
-    else
-      echo "Warning: Failed to reinstall dependencies, using existing packages" >&2
-    fi
-  else
-    echo "Warning: Failed to decode pyproject.toml content, using default configuration" >&2
-  fi
-fi
 
 exec "$@"
