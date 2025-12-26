@@ -2,8 +2,6 @@ name: Build and Publish Container
 
 on:
   push:
-    tags:
-      - "v*"
     tags-ignore:
       - "*alpha*"
   workflow_dispatch:
