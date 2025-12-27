@@ -6,13 +6,11 @@ uv_update_command() {
   cd /opt/uv && echo "${PYTHON_PINNED_VERSION}" >.python-version
   uv venv /opt/uv/.venv --python "$(pyenv which python)"
   /root/.cargo/bin/uv pip install --python /opt/uv/.venv/bin/python -r pyproject.toml
-
   # Create symlink from existing /root/.ansible/ansible_collections to site-packages
-  if [ -d "/root/collections/ansible_collections" ]; then
-    rm -rf "/opt/uv/.venv/lib/python${PYTHON_PINNED_VERSION}/site-packages/ansible_collections"
-    [ -d "/root/collections/ansible_collections" ] || mkdir -p "/root/collections/ansible_collections"
-    ln -s "/root/collections/ansible_collections" "/opt/uv/.venv/lib/python${PYTHON_PINNED_VERSION}/site-packages/ansible_collections"
-  fi
+  rm -rf "/opt/uv/.venv/lib/python${PYTHON_PINNED_VERSION}/site-packages/ansible_collections"
+  [ -d "/root/collections_faker/ansible_collections" ] || mkdir -p "/root/collections_faker/ansible_collections"
+  ln -s "/root/collections_faker/ansible_collections" "/opt/uv/.venv/lib/python${PYTHON_PINNED_VERSION}/site-packages/ansible_collections"
+
 }
 
 pyproject_toml_creation_command() {
