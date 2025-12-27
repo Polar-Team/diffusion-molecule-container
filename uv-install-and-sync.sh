@@ -10,6 +10,7 @@ uv_update_command() {
   # Create symlink from existing /root/.ansible/ansible_collections to site-packages
   if [ -d "/root/collections/ansible_collections" ]; then
     rm -rf "/opt/uv/.venv/lib/python${PYTHON_PINNED_VERSION}/site-packages/ansible_collections"
+    [ -d "/root/collections/ansible_collections" ] || mkdir -p "/root/collections/ansible_collections"
     ln -s "/root/collections/ansible_collections" "/opt/uv/.venv/lib/python${PYTHON_PINNED_VERSION}/site-packages/ansible_collections"
   fi
 }
