@@ -8,20 +8,21 @@ IMAGE_NAME := diffusion-molecule-container
 DIND_VERSION ?= 29.0.4-dind-alpine3.22
 # PYTHON_VERSION can be overridden: make publish PYTHON_VERSION=3.13.0
 PYTHON_VERSION ?= 3.13.0
-# ADDITIONAL_PYTHON_VERSIONS can be overridden: make publish ADDITIONAL_PYTHON_VERSIONS="3.12.0 3.11.0"
-ADDITIONAL_PYTHON_VERSIONS ?=
+VERSION ?= $(shell git describe --tags)
+# PYTHON_VERSIONS can be overridden: make publish ADDITIONAL_PYTHON_VERSIONS="3.12.0 3.11.0"
+PYTHON_VERSIONS ?=
 CACHE_PATH ?= ./cache
 EXTRA_CONF :=
+TEST_CONTAINER := false
+
 ifneq ($(wildcard /buildkitd.toml),)
 	EXTRA_CONF := -extra-conf
 endif
 
-# Get version from git tag or use 'latest'
-ifeq ($(OS),Windows_NT)
-VERSION ?= $(shell powershell -Command "git describe --tags")
-else
-VERSION ?= $(shell git describe --tags)
+ifeq ($(TEST_CONTAINER), true)
+	  TEST_SUFFIX := -test
 endif
+
 
 # Full image reference
 IMAGE := $(REGISTRY)/$(ORG)/$(IMAGE_NAME)
@@ -31,8 +32,8 @@ PLATFORMS := linux/amd64,linux/arm64
 
 # Build arguments
 BUILD_ARGS := --build-arg DIND_VERSION=$(DIND_VERSION) --build-arg PYTHON_VERSION=$(PYTHON_VERSION)
-ifneq ($(ADDITIONAL_PYTHON_VERSIONS),)
-BUILD_ARGS += --build-arg ADDITIONAL_PYTHON_VERSIONS="$(ADDITIONAL_PYTHON_VERSIONS)"
+ifneq ($(PYTHON_VERSIONS),)
+BUILD_ARGS += --build-arg PYTHON_VERSIONS="$(PYTHON_VERSIONS)"
 endif
 
 .PHONY: help
@@ -84,16 +85,16 @@ ifneq ($(wildcard ${CACHE_PATH}/firstinit),)
 		--platform linux/amd64 \
 		--cache-to=type=local,dest=${CACHE_PATH}  \
 		$(BUILD_ARGS) \
-		-t $(IMAGE):$(VERSION)-amd64 \
-		-t $(IMAGE):latest-amd64 \
+		-t $(IMAGE):$(VERSION)-amd64$(TEST_SUFFIX) \
+		-t $(IMAGE):latest-amd64$(TEST_SUFFIX) \
 		--push \
 		.
 	docker buildx build \
 		--platform linux/arm64 \
 		--cache-to=type=local,dest=${CACHE_PATH}  \
 		$(BUILD_ARGS) \
-		-t $(IMAGE):$(VERSION)-arm64 \
-		-t $(IMAGE):latest-arm64 \
+		-t $(IMAGE):$(VERSION)-arm64$(TEST_SUFFIX) \
+		-t $(IMAGE):latest-arm64$(TEST_SUFFIX) \
 		--push \
 		.
 	@rm -f ${CACHE_PATH}/firstinit
@@ -104,8 +105,8 @@ else
 		--cache-from=type=local,src=${CACHE_PATH} \
 		--cache-to=type=local,dest=${CACHE_PATH}  \
 		$(BUILD_ARGS) \
-		-t $(IMAGE):$(VERSION)-amd64 \
-		-t $(IMAGE):latest-amd64 \
+		-t $(IMAGE):$(VERSION)-amd64$(TEST_SUFFIX) \
+		-t $(IMAGE):latest-amd64$(TEST_SUFFIX) \
 		--push \
 		.
 	docker buildx build \
@@ -113,14 +114,15 @@ else
 		--cache-from=type=local,src=${CACHE_PATH} \
 		--cache-to=type=local,dest=${CACHE_PATH}  \
 		$(BUILD_ARGS) \
-		-t $(IMAGE):$(VERSION)-arm64 \
-		-t $(IMAGE):latest-arm64 \
+		-t $(IMAGE):$(VERSION)-arm64$(TEST_SUFFIX) \
+		-t $(IMAGE):latest-arm64$(TEST_SUFFIX) \
 		--push \
 		.
 endif
 
+
 .PHONY: publish
-publish:check_certificate check_cache setup-buildx$(EXTRA_CONF) login build-and-push-separate ## Publish with separate architecture tags
+publish:check_certificate check_cache setup-buildx$(EXTRA_CONF) login build-and-push-separate
 
 
 .PHONY: setup-buildx-extra-conf
