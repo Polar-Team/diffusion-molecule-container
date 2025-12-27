@@ -25,7 +25,8 @@ RUN apk add --no-cache --update \
   readline-dev=8.2.13-r1 \
   sqlite-dev=3.49.2-r1 \
   xz-dev=5.8.1-r0 \
-  tk-dev=8.6.16-r0
+  tk-dev=8.6.16-r0 \
+  patch=2.8-r0
 
 # Set shell with pipefail for all RUN commands
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
@@ -156,6 +157,7 @@ RUN eval "$(pyenv init -)" && \
   # Make wrapper executable and create molecule alias
   chmod +x /usr/local/bin/molecule-wrapper.sh && \
   ln -sf /usr/local/bin/molecule-wrapper.sh /usr/local/bin/molecule && \
+  chmod +x /usr/local/bin/uv-install-and-sync.sh && \
   ln -sf /usr/local/bin/uv-install-and-sync.sh /usr/local/bin/uv-sync && \
   # Clean up cache and temporary files
   rm -rf /root/.cache \
