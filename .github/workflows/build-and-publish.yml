@@ -150,10 +150,7 @@ jobs:
         run: docker pull ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
       - name: Run dive analysis
-        uses: yuichielectric/dive-action@0.0.4
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          config-file: ${{ github.workspace }}/.dive-ci
+        run: dive --ci ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
       - name: Image efficiency report
         run: |
