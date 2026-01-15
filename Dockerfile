@@ -1,10 +1,12 @@
-ARG DIND_VERSION="29.0.4-dind-alpine3.22"
+ARG DIND_VERSION="29.1.4-dind-alpine3.23"
 ARG PYTHON_VERSIONS="3.13.11 3.12.10 3.11.9"
+ARG UV_VERSION="0.9.25"
 
 
 FROM docker:${DIND_VERSION} AS builder
 
 ARG PYTHON_VERSIONS
+ARG UV_VERSION
 
 # Setup pyenv
 ENV PYENV_ROOT="/root/.pyenv"
@@ -12,20 +14,20 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 
 # Install system dependencies and build tools for pyenv
 RUN apk add --no-cache --update \
-  libffi-dev=3.4.8-r0 \
-  git=2.49.1-r0 \
-  curl=8.14.1-r2 \
-  bash=5.2.37-r0 \
-  gcc=14.2.0-r6 \
-  musl-dev=1.2.5-r10 \
+  libffi-dev=3.5.2-r0 \
+  git=2.52.0-r0 \
+  curl=8.17.0-r1 \
+  bash=5.3.3-r1 \
+  gcc=15.2.0-r2 \
+  musl-dev=1.2.5-r21 \
   make=4.4.1-r3 \
   openssl-dev=3.5.4-r0 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.3.1-r2 \
-  readline-dev=8.2.13-r1 \
-  sqlite-dev=3.49.2-r1 \
+  readline-dev=8.3.1-r0 \
+  sqlite-dev=3.51.2-r0 \
   xz-dev=5.8.1-r0 \
-  tk-dev=8.6.16-r0 \
+  tk-dev=8.6.17-r0 \
   patch=2.8-r0
 
 # Set shell with pipefail for all RUN commands
@@ -50,12 +52,19 @@ RUN eval "$(pyenv init -)" && \
   echo "Installing additional Python version: $version" && \
   pyenv install "$version"; \
   fi; \
-  done
+  done && \
+  # Cleanup pyenv cache and build artifacts
+  rm -rf /root/.pyenv/cache/* && \
+  rm -rf /root/.pyenv/sources/* && \
+  find /root/.pyenv/versions -type d -name 'test' -exec rm -rf {} + 2>/dev/null || true && \
+  find /root/.pyenv/versions -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && \
+  find /root/.pyenv/versions -name '*.pyc' -delete && \
+  find /root/.pyenv/versions -name '*.pyo' -delete
 
 
 # Installing uv
 RUN  curl -LsSf \
-  https://github.com/astral-sh/uv/releases/download/0.5.11/uv-x86_64-unknown-linux-musl.tar.gz \
+  https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-musl.tar.gz \
   -o /tmp/uv.tar.gz && \
   tar -xzf /tmp/uv.tar.gz -C /tmp && \
   [ -d  "/root/.cargo/bin/" ] || mkdir -p  /root/.cargo/bin && \
@@ -83,16 +92,16 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 # Set shell with pipefail for all RUN commands
 SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN apk add --no-cache --update \
-  git=2.49.1-r0 \
-  bash=5.2.37-r0 \
-  musl=1.2.5-r10 \
-  libffi=3.4.8-r0 \
+  git=2.52.0-r0 \
+  bash=5.3.3-r1 \
+  musl=1.2.5-r21 \
+  libffi=3.5.2-r0 \
   openssl=3.5.4-r0 \
   bzip2=1.0.8-r6 \
   zlib=1.3.1-r2  \
-  readline=8.2.13-r1 \
+  readline=8.3.1-r0 \
   xz=5.8.1-r0 \
-  tk=8.6.16-r0
+  tk=8.6.17-r0
 
 #  Upgrade all installed packages to their latest versions
 
