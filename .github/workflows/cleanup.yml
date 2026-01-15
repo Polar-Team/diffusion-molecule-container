@@ -1,0 +1,57 @@
+name: Cleanup All Caches
+
+on:
+  # Run on a schedule (e.g., every Sunday at 2 AM UTC)
+  schedule:
+    - cron: "0 2 * * 0"
+
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+
+jobs:
+  cleanup-caches:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Cleanup all caches
+        run: |
+          echo "Fetching list of all cache keys..."
+
+          # Get all caches (adjust limit if you have more caches)
+          cacheIds=$(gh cache list --limit 100 --json id --jq '.[].id')
+
+          if [ -z "$cacheIds" ]; then
+            echo "No caches found to delete."
+            exit 0
+          fi
+
+          echo "Found caches to delete. Starting cleanup..."
+
+          set +e
+          deletedCount=0
+          failedCount=0
+
+          for cacheId in $cacheIds
+          do
+            if gh cache delete $cacheId; then
+              echo "✓ Deleted cache: $cacheId"
+              ((deletedCount++))
+            else
+              echo "✗ Failed to delete cache: $cacheId"
+              ((failedCount++))
+            fi
+          done
+
+          echo ""
+          echo "========================================="
+          echo "Cache cleanup completed!"
+          echo "Successfully deleted: $deletedCount cache(s)"
+          echo "Failed to delete: $failedCount cache(s)"
+          echo "========================================="
+
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
