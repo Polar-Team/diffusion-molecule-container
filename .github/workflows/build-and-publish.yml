@@ -97,7 +97,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
           build-args: |
-            DIND_VERSION=29.0.4-dind-alpine3.22
+            DIND_VERSION=29.1.4-dind-alpine3.23
             PYTHON_VERSION=${{ env.PYTHON_VERSION }}
 
   create-manifest:
