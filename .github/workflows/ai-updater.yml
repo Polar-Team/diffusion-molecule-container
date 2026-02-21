@@ -35,11 +35,11 @@ jobs:
               messages: [
                 {
                   role: "system",
-                  content: "You are a Dockerfile dependency update agent. You follow instructions precisely and output only what is asked. You never add commentary outside the defined output format."
+                  content: "You are a Dockerfile dependency update agent. You output ONLY the updated Dockerfile content with no markdown fences, no commentary, no extra text — just the raw Dockerfile."
                 },
                 {
                   role: "user",
-                  content: ("You are executing the workflow defined in `.agents/updater.md`. Follow every step in those instructions precisely when deciding what to update.\n\n--- BEGIN .agents/updater.md ---\n" + $instructions + "\n--- END .agents/updater.md ---\n\nHere is the current Dockerfile to update:\n```dockerfile\n" + $dockerfile + "\n```\n\nRespond EXACTLY in this format with no text outside the markers:\n---DOCKERFILE_START---\n[updated Dockerfile content]\n---DOCKERFILE_END---\n---REASONING_START---\n[brief bullet list of what changed and what was intentionally left unchanged, referencing the updater.md steps]\n---REASONING_END---")
+                  content: ("You are executing the workflow defined in `.agents/updater.md`. Follow every step in those instructions precisely when deciding what to update.\n\n--- BEGIN .agents/updater.md ---\n" + $instructions + "\n--- END .agents/updater.md ---\n\nHere is the current Dockerfile:\n\n" + $dockerfile + "\n\nReturn ONLY the updated Dockerfile. No markdown code fences. No explanation. No extra text. Start your response with the first line of the Dockerfile.")
                 }
               ]
             }')
@@ -59,23 +59,54 @@ jobs:
 
           # Extract the message content
           CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
-          echo "Raw response received."
 
-          # Parse Dockerfile section
-          echo "$CONTENT" | sed -n '/---DOCKERFILE_START---/,/---DOCKERFILE_END---/{ /---DOCKERFILE_START---/d; /---DOCKERFILE_END---/d; p }' > Dockerfile.new
+          echo "--- RAW MODEL RESPONSE ---"
+          echo "$CONTENT"
+          echo "--- END RAW RESPONSE ---"
 
-          # Parse reasoning section
-          echo "$CONTENT" | sed -n '/---REASONING_START---/,/---REASONING_END---/{ /---REASONING_START---/d; /---REASONING_END---/d; p }' > agent_reasoning.txt
+          # Strip any accidental markdown code fences the model may add despite instructions
+          CLEANED=$(echo "$CONTENT" \
+            | sed '/^```/d' \
+            | sed '/^~~~/ d')
+
+          echo "$CLEANED" > Dockerfile.new
 
           if [ -s Dockerfile.new ]; then
-            mv Dockerfile.new Dockerfile
-            echo "Dockerfile updated successfully."
+            # Sanity check: must contain ARG or FROM to be a valid Dockerfile
+            if grep -qE '^(ARG|FROM)' Dockerfile.new; then
+              mv Dockerfile.new Dockerfile
+              echo "Dockerfile updated successfully."
+            else
+              echo "ERROR: Response does not look like a valid Dockerfile (no ARG/FROM found)."
+              exit 1
+            fi
           else
-            echo "ERROR: AI did not return a valid Dockerfile block. Aborting."
-            echo "Full response:"
-            echo "$CONTENT"
+            echo "ERROR: Model returned empty response."
             exit 1
           fi
+
+          # Ask the model for reasoning separately (non-blocking)
+          REASONING_PAYLOAD=$(jq -n \
+            --arg dockerfile_old "$(git diff Dockerfile || echo 'no diff')" \
+            '{
+              model: "openai/gpt-4o",
+              temperature: 0.1,
+              max_tokens: 512,
+              messages: [
+                {
+                  role: "user",
+                  content: ("Summarize in bullet points what dependency versions were updated and what was intentionally left unchanged in this Dockerfile diff:\n\n" + $dockerfile_old)
+                }
+              ]
+            }')
+
+          REASONING_RESPONSE=$(curl -sS \
+            -X POST "https://models.github.ai/inference/chat/completions" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$REASONING_PAYLOAD")
+
+          echo "$REASONING_RESPONSE" | jq -r '.choices[0].message.content // "No reasoning available."' > agent_reasoning.txt
 
       - name: Check for changes
         id: check_changes
