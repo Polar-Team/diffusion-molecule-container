@@ -17,97 +17,192 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run GitHub Models AI agent
+      # ── Step 1: Resolve latest versions from upstream ──────────────────────
+      - name: Resolve latest versions
+        id: versions
+        run: |
+          # Docker DinD — latest tag matching *-dind-alpine3.23
+          DIND=$(curl -sS "https://hub.docker.com/v2/repositories/library/docker/tags/?page_size=100" \
+            | jq -r '.results[].name' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-dind-alpine3\.23$' \
+            | sort -V | tail -1)
+          echo "dind=$DIND" >> $GITHUB_OUTPUT
+          echo "Resolved DinD: $DIND"
+
+          # uv — latest release from GitHub (stay on current minor 0.9.x to avoid breaking changes)
+          CURRENT_UV=$(grep 'UV_VERSION' Dockerfile | head -1 | grep -oP '[\d]+\.[\d]+\.[\d]+')
+          CURRENT_UV_MINOR=$(echo "$CURRENT_UV" | cut -d. -f1-2)
+          UV=$(curl -sS "https://api.github.com/repos/astral-sh/uv/releases?per_page=50" \
+            | jq -r '.[].tag_name' \
+            | grep -E "^${CURRENT_UV_MINOR}\." \
+            | sort -V | tail -1)
+          echo "uv=$UV" >> $GITHUB_OUTPUT
+          echo "Resolved uv: $UV"
+
+          # Python versions — latest patch for each minor in use
+          CURRENT_VERSIONS=$(grep 'PYTHON_VERSIONS' Dockerfile | head -1 | grep -oP '[\d]+\.[\d]+\.[\d]+' | tr '\n' ' ')
+          echo "Current Python versions: $CURRENT_VERSIONS"
+
+          PYTHON_RELEASES=$(curl -sS "https://www.python.org/api/v2/downloads/release/?format=json&limit=200&ordering=-name")
+          UPDATED_VERSIONS=""
+          for VER in $CURRENT_VERSIONS; do
+            MINOR=$(echo "$VER" | cut -d. -f1-2)
+            LATEST=$(echo "$PYTHON_RELEASES" \
+              | jq -r '.[].name' \
+              | grep -E "^Python ${MINOR//./\\.}\.[0-9]+$" \
+              | grep -oP "${MINOR//./\\.}\.[0-9]+" \
+              | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              LATEST=$VER
+            fi
+            UPDATED_VERSIONS="$UPDATED_VERSIONS $LATEST"
+          done
+          UPDATED_VERSIONS=$(echo "$UPDATED_VERSIONS" | xargs)  # trim whitespace
+          echo "python_versions=$UPDATED_VERSIONS" >> $GITHUB_OUTPUT
+          echo "Resolved Python versions: $UPDATED_VERSIONS"
+
+          # Alpine package versions — fetch each from pkgs.alpinelinux.org
+          fetch_apk_version() {
+            curl --max-time 10 -sS "https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/$1" \
+              | grep -A3 'class="header">Version' \
+              | grep -oP '(?<=<strong>)[\d]+\.[\d.]+(-r[\d]+)?(?=</strong>)' | head -1
+          }
+
+          OPENSSL_VER=$(fetch_apk_version openssl)
+          OPENSSL_DEV_VER=$(fetch_apk_version openssl-dev)
+          GIT_VER=$(fetch_apk_version git)
+          CURL_VER=$(fetch_apk_version curl)
+          BASH_VER=$(fetch_apk_version bash)
+          GCC_VER=$(fetch_apk_version gcc)
+          MUSL_VER=$(fetch_apk_version musl)
+          LIBFFI_VER=$(fetch_apk_version libffi)
+          MAKE_VER=$(fetch_apk_version make)
+          BZIP2_VER=$(fetch_apk_version bzip2)
+          ZLIB_VER=$(fetch_apk_version zlib)
+          READLINE_VER=$(fetch_apk_version readline)
+          SQLITE_VER=$(fetch_apk_version sqlite-dev)
+          XZ_VER=$(fetch_apk_version xz)
+          TK_VER=$(fetch_apk_version tk)
+          PATCH_VER=$(fetch_apk_version patch)
+
+          echo "openssl=$OPENSSL_VER"           >> $GITHUB_OUTPUT
+          echo "openssl_dev=$OPENSSL_DEV_VER"   >> $GITHUB_OUTPUT
+          echo "git=$GIT_VER"                   >> $GITHUB_OUTPUT
+          echo "curl=$CURL_VER"                 >> $GITHUB_OUTPUT
+          echo "bash=$BASH_VER"                 >> $GITHUB_OUTPUT
+          echo "gcc=$GCC_VER"                   >> $GITHUB_OUTPUT
+          echo "musl=$MUSL_VER"                 >> $GITHUB_OUTPUT
+          echo "libffi=$LIBFFI_VER"             >> $GITHUB_OUTPUT
+          echo "make=$MAKE_VER"                 >> $GITHUB_OUTPUT
+          echo "bzip2=$BZIP2_VER"               >> $GITHUB_OUTPUT
+          echo "zlib=$ZLIB_VER"                 >> $GITHUB_OUTPUT
+          echo "readline=$READLINE_VER"         >> $GITHUB_OUTPUT
+          echo "sqlite=$SQLITE_VER"             >> $GITHUB_OUTPUT
+          echo "xz=$XZ_VER"                     >> $GITHUB_OUTPUT
+          echo "tk=$TK_VER"                     >> $GITHUB_OUTPUT
+          echo "patch=$PATCH_VER"               >> $GITHUB_OUTPUT
+
+          echo "All versions resolved."
+
+      # ── Step 2: Use AI to apply the resolved versions to the Dockerfile ────
+      - name: Apply updates via GitHub Models AI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          INSTRUCTIONS=$(cat .agents/updater.md)
           DOCKERFILE=$(cat Dockerfile)
 
-          # Build JSON payload using jq to safely handle special characters
+          VERSIONS_SUMMARY="Resolved latest versions to apply:
+          - DIND_VERSION: ${{ steps.versions.outputs.dind }}
+          - UV_VERSION: ${{ steps.versions.outputs.uv }}
+          - PYTHON_VERSIONS: ${{ steps.versions.outputs.python_versions }}
+          - git: ${{ steps.versions.outputs.git }}
+          - curl: ${{ steps.versions.outputs.curl }}
+          - bash: ${{ steps.versions.outputs.bash }}
+          - gcc: ${{ steps.versions.outputs.gcc }}
+          - musl / musl-dev: ${{ steps.versions.outputs.musl }}
+          - libffi / libffi-dev: ${{ steps.versions.outputs.libffi }}
+          - make: ${{ steps.versions.outputs.make }}
+          - openssl / openssl-dev: ${{ steps.versions.outputs.openssl }}
+          - bzip2 / bzip2-dev: ${{ steps.versions.outputs.bzip2 }}
+          - zlib / zlib-dev: ${{ steps.versions.outputs.zlib }}
+          - readline / readline-dev: ${{ steps.versions.outputs.readline }}
+          - sqlite-dev: ${{ steps.versions.outputs.sqlite }}
+          - xz / xz-dev: ${{ steps.versions.outputs.xz }}
+          - tk / tk-dev: ${{ steps.versions.outputs.tk }}
+          - patch: ${{ steps.versions.outputs.patch }}"
+
+          echo "$VERSIONS_SUMMARY"
+
           PAYLOAD=$(jq -n \
-            --arg instructions "$INSTRUCTIONS" \
             --arg dockerfile "$DOCKERFILE" \
+            --arg versions "$VERSIONS_SUMMARY" \
             '{
               model: "openai/gpt-4o",
-              temperature: 0.1,
+              temperature: 0,
               max_tokens: 4096,
               messages: [
                 {
                   role: "system",
-                  content: "You are a Dockerfile dependency update agent. You output ONLY the updated Dockerfile content with no markdown fences, no commentary, no extra text — just the raw Dockerfile."
+                  content: "You are a Dockerfile editor. You receive a Dockerfile and a list of new package versions. You update the version pins in the Dockerfile to match the provided versions exactly. You output ONLY the raw updated Dockerfile — no markdown fences, no explanation, no extra text."
                 },
                 {
                   role: "user",
-                  content: ("You are executing the workflow defined in `.agents/updater.md`. Follow every step in those instructions precisely when deciding what to update.\n\n--- BEGIN .agents/updater.md ---\n" + $instructions + "\n--- END .agents/updater.md ---\n\nHere is the current Dockerfile:\n\n" + $dockerfile + "\n\nReturn ONLY the updated Dockerfile. No markdown code fences. No explanation. No extra text. Start your response with the first line of the Dockerfile.")
+                  content: ("Update the following Dockerfile by replacing all version pins with the exact versions listed below. Do not change anything else.\n\n" + $versions + "\n\nDockerfile:\n\n" + $dockerfile)
                 }
               ]
             }')
 
-          echo "Calling GitHub Models API..."
           RESPONSE=$(curl -sS \
             -X POST "https://models.github.ai/inference/chat/completions" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
 
-          # Check for API errors
           if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
             echo "API error: $(echo "$RESPONSE" | jq -r '.error.message')"
             exit 1
           fi
 
-          # Extract the message content
           CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
 
           echo "--- RAW MODEL RESPONSE ---"
           echo "$CONTENT"
           echo "--- END RAW RESPONSE ---"
 
-          # Strip any accidental markdown code fences the model may add despite instructions
-          CLEANED=$(echo "$CONTENT" \
-            | sed '/^```/d' \
-            | sed '/^~~~/ d')
+          # Strip any accidental markdown fences
+          echo "$CONTENT" | sed '/^```/d; /^~~~/d' > Dockerfile.new
 
-          echo "$CLEANED" > Dockerfile.new
-
-          if [ -s Dockerfile.new ]; then
-            # Sanity check: must contain ARG or FROM to be a valid Dockerfile
-            if grep -qE '^(ARG|FROM)' Dockerfile.new; then
-              mv Dockerfile.new Dockerfile
-              echo "Dockerfile updated successfully."
-            else
-              echo "ERROR: Response does not look like a valid Dockerfile (no ARG/FROM found)."
-              exit 1
-            fi
+          if grep -qE '^(ARG|FROM)' Dockerfile.new; then
+            mv Dockerfile.new Dockerfile
+            echo "Dockerfile updated successfully."
           else
-            echo "ERROR: Model returned empty response."
+            echo "ERROR: Response does not look like a valid Dockerfile."
             exit 1
           fi
 
-          # Ask the model for reasoning separately (non-blocking)
-          REASONING_PAYLOAD=$(jq -n \
-            --arg dockerfile_old "$(git diff Dockerfile || echo 'no diff')" \
-            '{
+          # Generate reasoning from the diff
+          DIFF=$(git diff Dockerfile)
+          if [ -n "$DIFF" ]; then
+            REASONING_PAYLOAD=$(jq -n --arg diff "$DIFF" '{
               model: "openai/gpt-4o",
-              temperature: 0.1,
+              temperature: 0,
               max_tokens: 512,
-              messages: [
-                {
-                  role: "user",
-                  content: ("Summarize in bullet points what dependency versions were updated and what was intentionally left unchanged in this Dockerfile diff:\n\n" + $dockerfile_old)
-                }
-              ]
+              messages: [{
+                role: "user",
+                content: ("Summarize in a short bullet list what version pins changed in this Dockerfile diff:\n\n" + $diff)
+              }]
             }')
+            curl -sS \
+              -X POST "https://models.github.ai/inference/chat/completions" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$REASONING_PAYLOAD" \
+              | jq -r '.choices[0].message.content // "No reasoning available."' > agent_reasoning.txt
+          else
+            echo "No changes in Dockerfile." > agent_reasoning.txt
+          fi
 
-          REASONING_RESPONSE=$(curl -sS \
-            -X POST "https://models.github.ai/inference/chat/completions" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$REASONING_PAYLOAD")
-
-          echo "$REASONING_RESPONSE" | jq -r '.choices[0].message.content // "No reasoning available."' > agent_reasoning.txt
-
+      # ── Step 3: Commit, push, open PR ──────────────────────────────────────
       - name: Check for changes
         id: check_changes
         run: |
@@ -135,27 +230,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REASONING=""
-          if [ -f agent_reasoning.txt ]; then
-            REASONING=$(cat agent_reasoning.txt)
-          fi
-
+          REASONING=$(cat agent_reasoning.txt 2>/dev/null || echo "No reasoning available.")
           PR_BODY=$(cat <<EOF
           ## AI Dockerfile Dependency Update
 
-          This PR was automatically generated by the scheduled AI updater using **GitHub Models (gpt-4.1)**.
-          The agent followed the instructions in \`.agents/updater.md\`.
+          Automatically generated by the scheduled AI updater (GitHub Models / gpt-4o).
+          Versions were resolved from upstream sources; AI applied them to the Dockerfile.
 
-          ### What the agent changed:
+          ### Changes summary:
           ${REASONING}
 
           ---
-          > Please review the diff carefully before merging. The agent is instructed to be conservative but manual verification is always recommended.
+          > Review the diff carefully before merging.
           EOF
           )
 
           gh pr create \
-            --title "chore(docker): AI proposed dependency updates ($(date +%Y-%m-%d))" \
+            --title "chore(docker): AI dependency updates ($(date +%Y-%m-%d))" \
             --body "$PR_BODY" \
             --base main \
             --head "${{ env.BRANCH_NAME }}"
