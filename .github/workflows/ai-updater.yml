@@ -21,21 +21,34 @@ jobs:
       - name: Resolve latest versions
         id: versions
         run: |
+          echo "::group::Resolving upstream versions"
+
           # Docker DinD — latest tag matching *-dind-alpine3.23
-          DIND=$(curl -sS "https://hub.docker.com/v2/repositories/library/docker/tags/?page_size=100" \
+          DIND=$(curl --max-time 30 --connect-timeout 10 -sS \
+            "https://hub.docker.com/v2/repositories/library/docker/tags/?page_size=100" \
             | jq -r '.results[].name' \
             | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-dind-alpine3\.23$' \
             | sort -V | tail -1)
+          if [ -z "$DIND" ]; then
+            echo "::error::Failed to resolve DinD version from Docker Hub"
+            exit 1
+          fi
           echo "dind=$DIND" >> $GITHUB_OUTPUT
           echo "Resolved DinD: $DIND"
 
-          # uv — latest release from GitHub (stay on current minor 0.9.x to avoid breaking changes)
+          # uv — latest release from GitHub (stay on current minor to avoid breaking changes)
           CURRENT_UV=$(grep 'UV_VERSION' Dockerfile | head -1 | grep -oP '[\d]+\.[\d]+\.[\d]+')
           CURRENT_UV_MINOR=$(echo "$CURRENT_UV" | cut -d. -f1-2)
-          UV=$(curl -sS "https://api.github.com/repos/astral-sh/uv/releases?per_page=50" \
+          echo "Current uv: $CURRENT_UV (minor series: $CURRENT_UV_MINOR)"
+          UV=$(curl --max-time 30 --connect-timeout 10 -sS \
+            "https://api.github.com/repos/astral-sh/uv/releases?per_page=50" \
             | jq -r '.[].tag_name' \
             | grep -E "^${CURRENT_UV_MINOR}\." \
             | sort -V | tail -1)
+          if [ -z "$UV" ]; then
+            UV=$CURRENT_UV
+            echo "::warning::Could not resolve uv version, keeping current: $UV"
+          fi
           echo "uv=$UV" >> $GITHUB_OUTPUT
           echo "Resolved uv: $UV"
 
@@ -43,7 +56,8 @@ jobs:
           CURRENT_VERSIONS=$(grep 'PYTHON_VERSIONS' Dockerfile | head -1 | grep -oP '[\d]+\.[\d]+\.[\d]+' | tr '\n' ' ')
           echo "Current Python versions: $CURRENT_VERSIONS"
 
-          PYTHON_RELEASES=$(curl -sS "https://www.python.org/api/v2/downloads/release/?format=json&limit=200&ordering=-name")
+          PYTHON_RELEASES=$(curl --max-time 30 --connect-timeout 10 -sS \
+            "https://www.python.org/api/v2/downloads/release/?format=json&limit=200&ordering=-name")
           UPDATED_VERSIONS=""
           for VER in $CURRENT_VERSIONS; do
             MINOR=$(echo "$VER" | cut -d. -f1-2)
@@ -63,9 +77,16 @@ jobs:
 
           # Alpine package versions — fetch each from pkgs.alpinelinux.org
           fetch_apk_version() {
-            curl --max-time 10 -sS "https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/$1" \
+            local pkg="$1"
+            local ver
+            ver=$(curl --max-time 10 --connect-timeout 5 -sS \
+              "https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/$pkg" \
               | grep -A3 'class="header">Version' \
-              | grep -oP '(?<=<strong>)[\d]+\.[\d.]+(-r[\d]+)?(?=</strong>)' | head -1
+              | grep -oP '(?<=<strong>)[\d]+\.[\d.]+(-r[\d]+)?(?=</strong>)' | head -1)
+            if [ -z "$ver" ]; then
+              echo "::warning::Could not resolve version for Alpine package: $pkg"
+            fi
+            echo "$ver"
           }
 
           OPENSSL_VER=$(fetch_apk_version openssl)
@@ -102,13 +123,15 @@ jobs:
           echo "tk=$TK_VER"                     >> $GITHUB_OUTPUT
           echo "patch=$PATCH_VER"               >> $GITHUB_OUTPUT
 
-          echo "All versions resolved."
+          echo "::endgroup::"
+          echo "All versions resolved successfully."
 
       # ── Step 2: Use AI to apply the resolved versions to the Dockerfile ────
       - name: Apply updates via GitHub Models AI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "::group::Preparing AI request"
           DOCKERFILE=$(cat Dockerfile)
 
           VERSIONS_SUMMARY="Resolved latest versions to apply:
@@ -151,53 +174,75 @@ jobs:
                 }
               ]
             }')
+          echo "::endgroup::"
 
-          RESPONSE=$(curl -sS \
+          echo "::group::Calling GitHub Models API"
+          echo "Sending request to GitHub Models API..."
+          RESPONSE=$(curl --max-time 120 --connect-timeout 30 -sS \
             -X POST "https://models.github.ai/inference/chat/completions" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
+          CURL_EXIT=$?
 
+          if [ $CURL_EXIT -ne 0 ]; then
+            echo "::error::curl failed with exit code $CURL_EXIT"
+            exit 1
+          fi
+
+          if [ -z "$RESPONSE" ]; then
+            echo "::error::API returned an empty response. Verify the GITHUB_TOKEN has models:read permission."
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Processing API response"
           if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
-            echo "API error: $(echo "$RESPONSE" | jq -r '.error.message')"
+            echo "::error::API error: $(echo "$RESPONSE" | jq -r '.error.message')"
             exit 1
           fi
 
           CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
 
           if [ -z "$CONTENT" ]; then
-            echo "ERROR: Empty content. Full response structure:"
-            echo "$RESPONSE" | jq '.'
+            FINISH_REASON=$(echo "$RESPONSE" | jq -r '.choices[0].finish_reason // "unknown"')
+            echo "::error::Empty content received from API (finish_reason=$FINISH_REASON)"
             exit 1
           fi
 
-          # Extract Dockerfile content, handling markdown code fences and extra text
-          printf '%s' "$CONTENT" | python3 -c '
-import sys, re
-content = sys.stdin.read()
-# Match opening fence (with optional language hint and trailing text), capture content, then closing fence
-match = re.search(r"```(?:dockerfile|docker)?[^\n]*\n(.*?)\n?```", content, re.DOTALL | re.IGNORECASE)
-if match:
-    print(match.group(1).strip())
-else:
-    print(content.strip())
-' > Dockerfile.new
+          echo "Response received ($(printf '%s' "$CONTENT" | wc -l) lines)."
 
-          # Validate: must contain at least one FROM directive and be non-trivially small
+          # Extract Dockerfile content: if fenced, extract between first fence pair;
+          # otherwise use the full response as-is (handles both cases without Python)
+          if printf '%s\n' "$CONTENT" | grep -qE '^(```|~~~)'; then
+            printf '%s\n' "$CONTENT" \
+              | awk '/^(```|~~~)/{if(!found){found=1;next}else{exit}} found' > Dockerfile.new
+          else
+            printf '%s\n' "$CONTENT" > Dockerfile.new
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Validating updated Dockerfile"
           FROM_COUNT=$(grep -c '^FROM' Dockerfile.new 2>/dev/null || echo 0)
           LINE_COUNT=$(wc -l < Dockerfile.new)
+          echo "Dockerfile.new: $LINE_COUNT lines, $FROM_COUNT FROM directives"
+
           if [ "$FROM_COUNT" -gt 0 ] && [ "$LINE_COUNT" -gt 3 ] && [ -s Dockerfile.new ]; then
             mv Dockerfile.new Dockerfile
             echo "Dockerfile updated successfully."
           else
-            echo "ERROR: Response does not look like a valid Dockerfile (FROM directives: $FROM_COUNT, lines: $LINE_COUNT)."
-            cat Dockerfile.new
+            echo "::error::Response does not look like a valid Dockerfile (FROM directives: $FROM_COUNT, lines: $LINE_COUNT)."
+            echo "First 10 lines of received content:"
+            head -10 Dockerfile.new || true
             exit 1
           fi
+          echo "::endgroup::"
 
           # Generate reasoning from the diff
+          echo "::group::Generating change summary"
           DIFF=$(git diff Dockerfile)
           if [ -n "$DIFF" ]; then
+            echo "Generating change summary (diff: $(printf '%s' "$DIFF" | wc -l) lines)..."
             REASONING_PAYLOAD=$(jq -n --arg diff "$DIFF" '{
               model: "openai/gpt-4o",
               temperature: 0,
@@ -207,15 +252,18 @@ else:
                 content: ("Summarize in a short bullet list what version pins changed in this Dockerfile diff:\n\n" + $diff)
               }]
             }')
-            curl -sS \
+            curl --max-time 60 --connect-timeout 15 -sS \
               -X POST "https://models.github.ai/inference/chat/completions" \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$REASONING_PAYLOAD" \
               | jq -r '.choices[0].message.content // "No reasoning available."' > agent_reasoning.txt
+            echo "Change summary written to agent_reasoning.txt."
           else
             echo "No changes in Dockerfile." > agent_reasoning.txt
+            echo "No version changes detected."
           fi
+          echo "::endgroup::"
 
       # ── Step 3: Commit, push, open PR ──────────────────────────────────────
       - name: Check for changes
@@ -223,6 +271,7 @@ else:
         run: |
           if [[ -n "$(git status --porcelain Dockerfile)" ]]; then
             echo "changes_exist=true" >> $GITHUB_ENV
+            echo "Changes detected in Dockerfile."
           else
             echo "changes_exist=false" >> $GITHUB_ENV
             echo "No changes detected — Dockerfile is already up to date."
@@ -239,6 +288,7 @@ else:
           git commit -m "chore(docker): AI proposed dependency updates"
           git push origin "$BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "Branch $BRANCH_NAME pushed successfully."
 
       - name: Create pull request
         if: env.changes_exist == 'true'
