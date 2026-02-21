@@ -28,7 +28,7 @@ jobs:
             --arg instructions "$INSTRUCTIONS" \
             --arg dockerfile "$DOCKERFILE" \
             '{
-              model: "openai/gpt-4.1",
+              model: "openai/gpt-4o",
               temperature: 0.1,
               max_tokens: 4096,
               messages: [
@@ -45,7 +45,7 @@ jobs:
 
           echo "Calling GitHub Models API..."
           RESPONSE=$(curl -sS \
-            -X POST "https://models.inference.ai.azure.com/chat/completions" \
+            -X POST "https://models.github.ai/inference/chat/completions" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
