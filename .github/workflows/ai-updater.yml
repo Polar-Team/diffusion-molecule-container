@@ -158,25 +158,41 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
 
+          echo "--- RAW API RESPONSE ---"
+          echo "$RESPONSE"
+          echo "--- END RAW API RESPONSE ---"
+
           if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
             echo "API error: $(echo "$RESPONSE" | jq -r '.error.message')"
             exit 1
           fi
 
-          CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content')
+          CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$CONTENT" ]; then
+            echo "ERROR: Empty content. Full response structure:"
+            echo "$RESPONSE" | jq '.'
+            exit 1
+          fi
 
           echo "--- RAW MODEL RESPONSE ---"
           echo "$CONTENT"
           echo "--- END RAW RESPONSE ---"
 
-          # Strip any accidental markdown fences
-          echo "$CONTENT" | sed '/^```/d; /^~~~/d' > Dockerfile.new
+          # Strip markdown fences (```dockerfile, ```docker, ``` etc.) and leading/trailing blank lines
+          echo "$CONTENT" \
+            | sed 's/^[[:space:]]*//' \
+            | grep -v '^```' \
+            | grep -v '^~~~' > Dockerfile.new
 
-          if grep -qE '^(ARG|FROM)' Dockerfile.new; then
+          # Validate: must contain ARG or FROM anywhere in the file
+          if grep -qE '(ARG|FROM)' Dockerfile.new && [ -s Dockerfile.new ]; then
             mv Dockerfile.new Dockerfile
             echo "Dockerfile updated successfully."
           else
             echo "ERROR: Response does not look like a valid Dockerfile."
+            echo "Content of Dockerfile.new:"
+            cat Dockerfile.new
             exit 1
           fi
 
