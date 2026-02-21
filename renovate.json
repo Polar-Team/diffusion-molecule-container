@@ -8,10 +8,11 @@
       "customType": "regex",
       "fileMatch": ["(^|/)Dockerfile$"],
       "matchStrings": [
-        "\\s+(?<depName>[a-zA-Z0-9_.-]+)=(?<currentValue>[0-9][a-zA-Z0-9_.-]+-r[0-9]+)"
+        "apk add[\\s\\S]*?(?:\\\\\\n|\\s)+(?<depName>[a-zA-Z0-9_.-]+)=(?<currentValue>[0-9][a-zA-Z0-9_.-]+-r[0-9]+)"
       ],
+      "matchStringsStrategy": "any",
       "datasourceTemplate": "repology",
-      "depTypeTemplate": "alpine",
+      "depTypeTemplate": "alpine_3_22",
       "versioningTemplate": "loose"
     }
   ],
