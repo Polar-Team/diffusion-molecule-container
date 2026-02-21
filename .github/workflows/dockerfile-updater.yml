@@ -2,7 +2,7 @@ name: Scheduled Dockerfile Updater
 
 on:
   schedule:
-    - cron: '0 8 * * 1' # Every Monday at 8:00 AM UTC
+    - cron: "0 8 * * 1" # Every Monday at 8:00 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -148,8 +148,8 @@ jobs:
           PATCH_VER="${{ steps.versions.outputs.patch }}"
 
           # Replace version variables directly in Dockerfile
-          sed -i "s/DIND_VERSION=.*/DIND_VERSION=${DIND}/" Dockerfile
-          sed -i "s/UV_VERSION=.*/UV_VERSION=${UV}/" Dockerfile
+          sed -i "s/DIND_VERSION=.*/DIND_VERSION=\"${DIND}\"/" Dockerfile
+          sed -i "s/UV_VERSION=.*/UV_VERSION=\"${UV}\"/" Dockerfile
           sed -i "s/PYTHON_VERSIONS=.*/PYTHON_VERSIONS=\"${UPDATED_VERSIONS}\"/" Dockerfile
 
           # Replace Alpine package versions
