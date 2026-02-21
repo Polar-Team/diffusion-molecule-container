@@ -1,4 +1,4 @@
-name: Scheduled AI Dockerfile Updater
+name: Scheduled Dockerfile Updater
 
 on:
   schedule:
@@ -11,7 +11,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      models: read
 
     steps:
       - name: Checkout repository
@@ -126,144 +125,68 @@ jobs:
           echo "::endgroup::"
           echo "All versions resolved successfully."
 
-      # ── Step 2: Use AI to apply the resolved versions to the Dockerfile ────
-      - name: Apply updates via GitHub Models AI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # ── Step 2: Apply resolved versions directly to the Dockerfile ────────
+      - name: Apply version updates directly
         run: |
-          echo "::group::Preparing AI request"
-          DOCKERFILE=$(cat Dockerfile)
+          DIND="${{ steps.versions.outputs.dind }}"
+          UV="${{ steps.versions.outputs.uv }}"
+          UPDATED_VERSIONS="${{ steps.versions.outputs.python_versions }}"
+          GIT_VER="${{ steps.versions.outputs.git }}"
+          CURL_VER="${{ steps.versions.outputs.curl }}"
+          BASH_VER="${{ steps.versions.outputs.bash }}"
+          GCC_VER="${{ steps.versions.outputs.gcc }}"
+          MUSL_VER="${{ steps.versions.outputs.musl }}"
+          LIBFFI_VER="${{ steps.versions.outputs.libffi }}"
+          MAKE_VER="${{ steps.versions.outputs.make }}"
+          OPENSSL_VER="${{ steps.versions.outputs.openssl }}"
+          BZIP2_VER="${{ steps.versions.outputs.bzip2 }}"
+          ZLIB_VER="${{ steps.versions.outputs.zlib }}"
+          READLINE_VER="${{ steps.versions.outputs.readline }}"
+          SQLITE_VER="${{ steps.versions.outputs.sqlite }}"
+          XZ_VER="${{ steps.versions.outputs.xz }}"
+          TK_VER="${{ steps.versions.outputs.tk }}"
+          PATCH_VER="${{ steps.versions.outputs.patch }}"
 
-          VERSIONS_SUMMARY="Resolved latest versions to apply:
-          - DIND_VERSION: ${{ steps.versions.outputs.dind }}
-          - UV_VERSION: ${{ steps.versions.outputs.uv }}
-          - PYTHON_VERSIONS: ${{ steps.versions.outputs.python_versions }}
-          - git: ${{ steps.versions.outputs.git }}
-          - curl: ${{ steps.versions.outputs.curl }}
-          - bash: ${{ steps.versions.outputs.bash }}
-          - gcc: ${{ steps.versions.outputs.gcc }}
-          - musl / musl-dev: ${{ steps.versions.outputs.musl }}
-          - libffi / libffi-dev: ${{ steps.versions.outputs.libffi }}
-          - make: ${{ steps.versions.outputs.make }}
-          - openssl / openssl-dev: ${{ steps.versions.outputs.openssl }}
-          - bzip2 / bzip2-dev: ${{ steps.versions.outputs.bzip2 }}
-          - zlib / zlib-dev: ${{ steps.versions.outputs.zlib }}
-          - readline / readline-dev: ${{ steps.versions.outputs.readline }}
-          - sqlite-dev: ${{ steps.versions.outputs.sqlite }}
-          - xz / xz-dev: ${{ steps.versions.outputs.xz }}
-          - tk / tk-dev: ${{ steps.versions.outputs.tk }}
-          - patch: ${{ steps.versions.outputs.patch }}"
+          # Replace version variables directly in Dockerfile
+          sed -i "s/DIND_VERSION=.*/DIND_VERSION=${DIND}/" Dockerfile
+          sed -i "s/UV_VERSION=.*/UV_VERSION=${UV}/" Dockerfile
+          sed -i "s/PYTHON_VERSIONS=.*/PYTHON_VERSIONS=\"${UPDATED_VERSIONS}\"/" Dockerfile
 
-          echo "$VERSIONS_SUMMARY"
+          # Replace Alpine package versions
+          sed -i "s/git=[0-9][^[:space:]]*/git=${GIT_VER}/g" Dockerfile
+          sed -i "s/curl=[0-9][^[:space:]]*/curl=${CURL_VER}/g" Dockerfile
+          sed -i "s/bash=[0-9][^[:space:]]*/bash=${BASH_VER}/g" Dockerfile
+          sed -i "s/gcc=[0-9][^[:space:]]*/gcc=${GCC_VER}/g" Dockerfile
+          sed -i "s/musl=[0-9][^[:space:]]*/musl=${MUSL_VER}/g" Dockerfile
+          sed -i "s/musl-dev=[0-9][^[:space:]]*/musl-dev=${MUSL_VER}/g" Dockerfile
+          sed -i "s/libffi=[0-9][^[:space:]]*/libffi=${LIBFFI_VER}/g" Dockerfile
+          sed -i "s/libffi-dev=[0-9][^[:space:]]*/libffi-dev=${LIBFFI_VER}/g" Dockerfile
+          sed -i "s/make=[0-9][^[:space:]]*/make=${MAKE_VER}/g" Dockerfile
+          sed -i "s/openssl=[0-9][^[:space:]]*/openssl=${OPENSSL_VER}/g" Dockerfile
+          sed -i "s/openssl-dev=[0-9][^[:space:]]*/openssl-dev=${OPENSSL_VER}/g" Dockerfile
+          sed -i "s/bzip2=[0-9][^[:space:]]*/bzip2=${BZIP2_VER}/g" Dockerfile
+          sed -i "s/bzip2-dev=[0-9][^[:space:]]*/bzip2-dev=${BZIP2_VER}/g" Dockerfile
+          sed -i "s/zlib=[0-9][^[:space:]]*/zlib=${ZLIB_VER}/g" Dockerfile
+          sed -i "s/zlib-dev=[0-9][^[:space:]]*/zlib-dev=${ZLIB_VER}/g" Dockerfile
+          sed -i "s/readline=[0-9][^[:space:]]*/readline=${READLINE_VER}/g" Dockerfile
+          sed -i "s/readline-dev=[0-9][^[:space:]]*/readline-dev=${READLINE_VER}/g" Dockerfile
+          sed -i "s/sqlite-dev=[0-9][^[:space:]]*/sqlite-dev=${SQLITE_VER}/g" Dockerfile
+          sed -i "s/xz=[0-9][^[:space:]]*/xz=${XZ_VER}/g" Dockerfile
+          sed -i "s/xz-dev=[0-9][^[:space:]]*/xz-dev=${XZ_VER}/g" Dockerfile
+          sed -i "s/tk=[0-9][^[:space:]]*/tk=${TK_VER}/g" Dockerfile
+          sed -i "s/tk-dev=[0-9][^[:space:]]*/tk-dev=${TK_VER}/g" Dockerfile
+          sed -i "s/patch=[0-9][^[:space:]]*/patch=${PATCH_VER}/g" Dockerfile
 
-          PAYLOAD=$(jq -n \
-            --arg dockerfile "$DOCKERFILE" \
-            --arg versions "$VERSIONS_SUMMARY" \
-            '{
-              model: "openai/gpt-4o",
-              temperature: 0,
-              max_tokens: 4096,
-              messages: [
-                {
-                  role: "system",
-                  content: "You are a Dockerfile editor. You receive a Dockerfile and a list of new package versions. You update the version pins in the Dockerfile to match the provided versions exactly. You output ONLY the raw updated Dockerfile — no markdown fences, no explanation, no extra text."
-                },
-                {
-                  role: "user",
-                  content: ("Update the following Dockerfile by replacing all version pins with the exact versions listed below. Do not change anything else.\n\n" + $versions + "\n\nDockerfile:\n\n" + $dockerfile)
-                }
-              ]
-            }')
-          echo "::endgroup::"
-
-          echo "::group::Calling GitHub Models API"
-          echo "Sending request to GitHub Models API..."
-          RESPONSE=$(curl --max-time 120 --connect-timeout 30 -sS \
-            -X POST "https://models.github.ai/inference/chat/completions" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          CURL_EXIT=$?
-
-          if [ $CURL_EXIT -ne 0 ]; then
-            echo "::error::curl failed with exit code $CURL_EXIT"
-            exit 1
-          fi
-
-          if [ -z "$RESPONSE" ]; then
-            echo "::error::API returned an empty response. Verify the GITHUB_TOKEN has models:read permission."
-            exit 1
-          fi
-          echo "::endgroup::"
-
-          echo "::group::Processing API response"
-          if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
-            echo "::error::API error: $(echo "$RESPONSE" | jq -r '.error.message')"
-            exit 1
-          fi
-
-          CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
-
-          if [ -z "$CONTENT" ]; then
-            FINISH_REASON=$(echo "$RESPONSE" | jq -r '.choices[0].finish_reason // "unknown"')
-            echo "::error::Empty content received from API (finish_reason=$FINISH_REASON)"
-            exit 1
-          fi
-
-          echo "Response received ($(printf '%s' "$CONTENT" | wc -l) lines)."
-
-          # Extract Dockerfile content: if fenced, extract between first fence pair;
-          # otherwise use the full response as-is (handles both cases without Python)
-          if printf '%s\n' "$CONTENT" | grep -qE '^(```|~~~)'; then
-            printf '%s\n' "$CONTENT" \
-              | awk '/^(```|~~~)/{if(!found){found=1;next}else{exit}} found' > Dockerfile.new
+          # Generate a simple summary of what was updated
+          if ! git diff --quiet Dockerfile; then
+            echo "Updated versions in Dockerfile:" > update_summary.txt
+            echo "- DIND: ${DIND}" >> update_summary.txt
+            echo "- UV: ${UV}" >> update_summary.txt
+            echo "- Python: ${UPDATED_VERSIONS}" >> update_summary.txt
+            echo "- Alpine packages: updated to latest available versions" >> update_summary.txt
           else
-            printf '%s\n' "$CONTENT" > Dockerfile.new
+            echo "No changes needed - all versions were already up to date." > update_summary.txt
           fi
-          echo "::endgroup::"
-
-          echo "::group::Validating updated Dockerfile"
-          FROM_COUNT=$(grep -c '^FROM' Dockerfile.new 2>/dev/null || echo 0)
-          LINE_COUNT=$(wc -l < Dockerfile.new)
-          echo "Dockerfile.new: $LINE_COUNT lines, $FROM_COUNT FROM directives"
-
-          if [ "$FROM_COUNT" -gt 0 ] && [ "$LINE_COUNT" -gt 3 ] && [ -s Dockerfile.new ]; then
-            mv Dockerfile.new Dockerfile
-            echo "Dockerfile updated successfully."
-          else
-            echo "::error::Response does not look like a valid Dockerfile (FROM directives: $FROM_COUNT, lines: $LINE_COUNT)."
-            echo "First 10 lines of received content:"
-            head -10 Dockerfile.new || true
-            exit 1
-          fi
-          echo "::endgroup::"
-
-          # Generate reasoning from the diff
-          echo "::group::Generating change summary"
-          DIFF=$(git diff Dockerfile)
-          if [ -n "$DIFF" ]; then
-            echo "Generating change summary (diff: $(printf '%s' "$DIFF" | wc -l) lines)..."
-            REASONING_PAYLOAD=$(jq -n --arg diff "$DIFF" '{
-              model: "openai/gpt-4o",
-              temperature: 0,
-              max_tokens: 512,
-              messages: [{
-                role: "user",
-                content: ("Summarize in a short bullet list what version pins changed in this Dockerfile diff:\n\n" + $diff)
-              }]
-            }')
-            curl --max-time 60 --connect-timeout 15 -sS \
-              -X POST "https://models.github.ai/inference/chat/completions" \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "$REASONING_PAYLOAD" \
-              | jq -r '.choices[0].message.content // "No reasoning available."' > agent_reasoning.txt
-            echo "Change summary written to agent_reasoning.txt."
-          else
-            echo "No changes in Dockerfile." > agent_reasoning.txt
-            echo "No version changes detected."
-          fi
-          echo "::endgroup::"
 
       # ── Step 3: Commit, push, open PR ──────────────────────────────────────
       - name: Check for changes
@@ -280,12 +203,12 @@ jobs:
       - name: Commit and push branch
         if: env.changes_exist == 'true'
         run: |
-          BRANCH_NAME="ai-dockerfile-update-$(date +%Y%m%d-%H%M)"
+          BRANCH_NAME="dockerfile-update-$(date +%Y%m%d-%H%M)"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH_NAME"
           git add Dockerfile
-          git commit -m "chore(docker): AI proposed dependency updates"
+          git commit -m "chore(docker): automated dependency updates"
           git push origin "$BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           echo "Branch $BRANCH_NAME pushed successfully."
@@ -295,12 +218,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REASONING=$(cat agent_reasoning.txt 2>/dev/null || echo "No reasoning available.")
+          REASONING=$(cat update_summary.txt 2>/dev/null || echo "No summary available.")
           PR_BODY=$(cat <<EOF
-          ## AI Dockerfile Dependency Update
+          ## Dockerfile Dependency Update
 
-          Automatically generated by the scheduled AI updater (GitHub Models / gpt-4o).
-          Versions were resolved from upstream sources; AI applied them to the Dockerfile.
+          Automatically generated by the scheduled Dockerfile updater.
+          Versions were resolved from upstream sources and applied directly to the Dockerfile.
 
           ### Changes summary:
           ${REASONING}
@@ -311,7 +234,7 @@ jobs:
           )
 
           gh pr create \
-            --title "chore(docker): AI dependency updates ($(date +%Y-%m-%d))" \
+            --title "chore(docker): dependency updates ($(date +%Y-%m-%d))" \
             --body "$PR_BODY" \
             --base main \
             --head "${{ env.BRANCH_NAME }}"
