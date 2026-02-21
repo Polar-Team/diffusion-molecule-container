@@ -179,13 +179,13 @@ jobs:
 
           # Generate a simple summary of what was updated
           if ! git diff --quiet Dockerfile; then
-            echo "Updated versions in Dockerfile:" > agent_reasoning.txt
-            echo "- DIND: ${DIND}" >> agent_reasoning.txt
-            echo "- UV: ${UV}" >> agent_reasoning.txt
-            echo "- Python: ${UPDATED_VERSIONS}" >> agent_reasoning.txt
-            echo "- Alpine packages: updated to latest available versions" >> agent_reasoning.txt
+            echo "Updated versions in Dockerfile:" > update_summary.txt
+            echo "- DIND: ${DIND}" >> update_summary.txt
+            echo "- UV: ${UV}" >> update_summary.txt
+            echo "- Python: ${UPDATED_VERSIONS}" >> update_summary.txt
+            echo "- Alpine packages: updated to latest available versions" >> update_summary.txt
           else
-            echo "No changes needed - all versions were already up to date." > agent_reasoning.txt
+            echo "No changes needed - all versions were already up to date." > update_summary.txt
           fi
 
       # ── Step 3: Commit, push, open PR ──────────────────────────────────────
@@ -218,7 +218,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REASONING=$(cat agent_reasoning.txt 2>/dev/null || echo "No reasoning available.")
+          REASONING=$(cat update_summary.txt 2>/dev/null || echo "No summary available.")
           PR_BODY=$(cat <<EOF
           ## Dockerfile Dependency Update
 
