@@ -158,10 +158,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
 
-          echo "--- RAW API RESPONSE ---"
-          echo "$RESPONSE"
-          echo "--- END RAW API RESPONSE ---"
-
           if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
             echo "API error: $(echo "$RESPONSE" | jq -r '.error.message')"
             exit 1
@@ -175,23 +171,26 @@ jobs:
             exit 1
           fi
 
-          echo "--- RAW MODEL RESPONSE ---"
-          echo "$CONTENT"
-          echo "--- END RAW RESPONSE ---"
+          # Extract Dockerfile content, handling markdown code fences and extra text
+          printf '%s' "$CONTENT" | python3 -c '
+import sys, re
+content = sys.stdin.read()
+# Match opening fence (with optional language hint and trailing text), capture content, then closing fence
+match = re.search(r"```(?:dockerfile|docker)?[^\n]*\n(.*?)\n?```", content, re.DOTALL | re.IGNORECASE)
+if match:
+    print(match.group(1).strip())
+else:
+    print(content.strip())
+' > Dockerfile.new
 
-          # Strip markdown fences (```dockerfile, ```docker, ``` etc.) and leading/trailing blank lines
-          echo "$CONTENT" \
-            | sed 's/^[[:space:]]*//' \
-            | grep -v '^```' \
-            | grep -v '^~~~' > Dockerfile.new
-
-          # Validate: must contain ARG or FROM anywhere in the file
-          if grep -qE '(ARG|FROM)' Dockerfile.new && [ -s Dockerfile.new ]; then
+          # Validate: must contain at least one FROM directive and be non-trivially small
+          FROM_COUNT=$(grep -c '^FROM' Dockerfile.new 2>/dev/null || echo 0)
+          LINE_COUNT=$(wc -l < Dockerfile.new)
+          if [ "$FROM_COUNT" -gt 0 ] && [ "$LINE_COUNT" -gt 3 ] && [ -s Dockerfile.new ]; then
             mv Dockerfile.new Dockerfile
             echo "Dockerfile updated successfully."
           else
-            echo "ERROR: Response does not look like a valid Dockerfile."
-            echo "Content of Dockerfile.new:"
+            echo "ERROR: Response does not look like a valid Dockerfile (FROM directives: $FROM_COUNT, lines: $LINE_COUNT)."
             cat Dockerfile.new
             exit 1
           fi
