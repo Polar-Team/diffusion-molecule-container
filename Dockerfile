@@ -1,6 +1,6 @@
-ARG DIND_VERSION="29.1.4-dind-alpine3.23"
-ARG PYTHON_VERSIONS="3.13.11 3.12.10 3.11.9"
-ARG UV_VERSION="0.9.25"
+ARG DIND_VERSION="29.2.1-dind-alpine3.23"
+ARG PYTHON_VERSIONS="3.13.12 3.12.10 3.11.12"
+ARG UV_VERSION="0.9.30"
 
 
 FROM docker:${DIND_VERSION} AS builder
@@ -21,7 +21,7 @@ RUN apk add --no-cache --update \
   gcc=15.2.0-r2 \
   musl-dev=1.2.5-r21 \
   make=4.4.1-r3 \
-  openssl-dev=3.5.4-r0 \
+  openssl-dev=3.5.5-r0 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.3.1-r2 \
   readline-dev=8.3.1-r0 \
@@ -96,7 +96,7 @@ RUN apk add --no-cache --update \
   bash=5.3.3-r1 \
   musl=1.2.5-r21 \
   libffi=3.5.2-r0 \
-  openssl=3.5.4-r0 \
+  openssl=3.5.5-r0 \
   bzip2=1.0.8-r6 \
   zlib=1.3.1-r2  \
   readline=8.3.1-r0 \
