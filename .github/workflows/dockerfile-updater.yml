@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  ai-update:
+  dockerfile-update:
     runs-on: ubuntu-latest
     permissions:
       contents: write
