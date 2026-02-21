@@ -236,5 +236,5 @@ jobs:
           gh pr create \
             --title "chore(docker): dependency updates ($(date +%Y-%m-%d))" \
             --body "$PR_BODY" \
-            --base main \
+            --base master \
             --head "${{ env.BRANCH_NAME }}"
