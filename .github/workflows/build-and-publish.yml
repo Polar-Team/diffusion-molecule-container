@@ -96,9 +96,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:latest-${{ steps.platform.outputs.suffix }}
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
-          build-args: |
-            DIND_VERSION=29.1.4-dind-alpine3.23
-            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+ 
 
   create-manifest:
     runs-on: ubuntu-latest
