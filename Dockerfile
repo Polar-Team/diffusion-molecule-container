@@ -168,6 +168,7 @@ RUN eval "$(pyenv init -)" && \
   ln -sf /usr/local/bin/molecule-wrapper.sh /usr/local/bin/molecule && \
   chmod +x /usr/local/bin/uv-install-and-sync.sh && \
   ln -sf /usr/local/bin/uv-install-and-sync.sh /usr/local/bin/uv-sync && \
+  chmod -R 0777 /opt/uv && \
   # Clean up cache and temporary files
   rm -rf /root/.cache \
   /tmp/* \
