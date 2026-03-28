@@ -127,19 +127,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:latest-amd64 \
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:latest-arm64
 
-      - name: Add windows/amd64 case to manifests
-        # Annotates the existing amd64 image as also satisfying windows/amd64 lookups.
-        # Windows Docker hosts resolve the manifest without a separate Windows image.
-        # diffusion passes --platform linux/amd64 at runtime, but this prevents
-        # "no matching manifest for windows/amd64" errors on Windows runners.
-        run: |
-          for TAG in latest ${{ github.ref_name }}; do
-            IMAGE="${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.IMAGE_NAME }}:${TAG}"
-            AMD64="${IMAGE}-amd64"
-            docker buildx imagetools create --tag ${IMAGE} ${AMD64} ${AMD64}
-            docker buildx imagetools annotate --os windows --arch amd64 ${IMAGE} ${AMD64}
-          done
-
   dive-analysis:
     runs-on: ubuntu-latest
     needs: [check-tag, build-and-push]
