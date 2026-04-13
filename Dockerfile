@@ -1,5 +1,5 @@
-ARG DIND_VERSION="29.3.1-dind-alpine3.23"
-ARG PYTHON_VERSIONS="3.13.12 3.12.13 3.11.15"
+ARG DIND_VERSION="29.4.0-dind-alpine3.23"
+ARG PYTHON_VERSIONS="3.13.13 3.12.13 3.11.15"
 ARG UV_VERSION="0.9.30"
 
 
@@ -19,9 +19,9 @@ RUN apk add --no-cache --update \
   curl=8.17.0-r1 \
   bash=5.3.3-r1 \
   gcc=15.2.0-r2 \
-  musl-dev=1.2.5-r21 \
+  musl-dev=1.2.5-r23 \
   make=4.4.1-r3 \
-  openssl-dev=3.5.5-r0 \
+  openssl-dev=3.5.6-r0 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.3.2-r0 \
   readline-dev=8.3.1-r0 \
@@ -94,9 +94,9 @@ SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN apk add --no-cache --update \
   git=2.52.0-r0 \
   bash=5.3.3-r1 \
-  musl=1.2.5-r21 \
+  musl=1.2.5-r23 \
   libffi=3.5.2-r0 \
-  openssl=3.5.5-r0 \
+  openssl=3.5.6-r0 \
   bzip2=1.0.8-r6 \
   zlib=1.3.2-r0  \
   readline=8.3.1-r0 \
