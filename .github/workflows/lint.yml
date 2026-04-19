@@ -2,9 +2,6 @@ name: Lint Dockerfile
 
 on:
   pull_request:
-    paths:
-      - "Dockerfile"
-      - ".github/workflows/lint.yml"
   workflow_dispatch:
 
 jobs:
