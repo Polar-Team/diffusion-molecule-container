@@ -1,6 +1,30 @@
 #!/bin/sh
 set -eu
 
+# Runtime CA certificate injection for corporate proxy environments
+# Handles certificates mounted at runtime via -v /path/to/cert.pem:/certificate.pem
+_inject_runtime_certificate() {
+  if [ -f "/certificate.pem" ] && [ -s "/certificate.pem" ]; then
+    # Append to system CA bundle if not already present
+    if ! grep -qF "$(head -1 /certificate.pem)" /etc/ssl/certs/ca-certificates.crt 2>/dev/null; then
+      cat /certificate.pem >> /etc/ssl/certs/ca-certificates.crt
+      echo "Runtime CA certificate injected into system trust store"
+    fi
+
+    # Append to Python certifi bundle if available
+    CERTIFI_BUNDLE=$(/opt/uv/.venv/bin/python -c "import certifi; print(certifi.where())" 2>/dev/null || true)
+    if [ -n "$CERTIFI_BUNDLE" ] && [ -f "$CERTIFI_BUNDLE" ]; then
+      if ! grep -qF "$(head -1 /certificate.pem)" "$CERTIFI_BUNDLE" 2>/dev/null; then
+        cat /certificate.pem >> "$CERTIFI_BUNDLE"
+        echo "Runtime CA certificate injected into Python certifi bundle"
+      fi
+    fi
+  fi
+}
+
+# Inject certificates early so all subsequent operations trust the corporate CA
+_inject_runtime_certificate
+
 # shellcheck disable=SC3043
 _configure_git() {
   local git_user="$1"

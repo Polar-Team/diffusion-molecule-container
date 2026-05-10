@@ -121,7 +121,7 @@ RUN  (rm -f /usr/lib/libzpool.so* /usr/lib/libzfs.so* || true)
 # Copy certificate first as uv installation might need it
 COPY certificate.pem /
 
-RUN if [ -f "/certificate.pem" ]; then \
+RUN if [ -f "/certificate.pem" ] && [ -s "/certificate.pem" ]; then \
   cat /certificate.pem >> /etc/ssl/certs/ca-certificates.crt; \
   else \
   echo "No custom certificate provided"; \
@@ -140,6 +140,13 @@ ENV PATH="/opt/uv/.venv/bin:$PATH"
 
 # Add uv to PATH for subsequent RUN commands
 ENV PATH="/root/.cargo/bin:$PATH"
+
+# Set SSL/TLS certificate environment variables for Python and tools
+# This ensures requests, pip, ansible-galaxy, etc. all use the system CA bundle
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+ENV PIP_CERT=/etc/ssl/certs/ca-certificates.crt
 
 # Create uv project directory and copy files
 RUN mkdir -p /opt/uv
@@ -163,6 +170,15 @@ RUN eval "$(pyenv init -)" && \
   # Create virtual environment and install dependencies
   uv venv /opt/uv/.venv --python "$(pyenv which python)" && \
   uv pip install --python /opt/uv/.venv/bin/python -r /opt/uv/pyproject.toml && \
+  # Inject custom CA certificate into Python certifi bundle (fixes SSL errors behind corporate proxies)
+  if [ -f "/certificate.pem" ] && [ -s "/certificate.pem" ]; then \
+  CERTIFI_BUNDLE=$(/opt/uv/.venv/bin/python -c "import certifi; print(certifi.where())" 2>/dev/null) && \
+  if [ -n "$CERTIFI_BUNDLE" ] && [ -f "$CERTIFI_BUNDLE" ]; then \
+  echo "" >> "$CERTIFI_BUNDLE" && \
+  cat /certificate.pem >> "$CERTIFI_BUNDLE" && \
+  echo "Custom CA certificate appended to certifi bundle: $CERTIFI_BUNDLE"; \
+  fi; \
+  fi && \
   # Make wrapper executable and create molecule alias
   chmod +x /usr/local/bin/molecule-wrapper.sh && \
   ln -sf /usr/local/bin/molecule-wrapper.sh /usr/local/bin/molecule && \
