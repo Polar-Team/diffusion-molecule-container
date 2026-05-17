@@ -1,4 +1,4 @@
-name: Lint Dockerfile
+name: Lint and Test
 
 on:
   pull_request:
@@ -16,3 +16,9 @@ jobs:
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
+
+      - name: Build and test container
+        run: |
+          touch certificate.pem
+          docker build -t diffusion-molecule-container:test .
+          docker run --rm diffusion-molecule-container:test molecule --version
