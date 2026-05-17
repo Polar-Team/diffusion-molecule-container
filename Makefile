@@ -33,6 +33,7 @@ PLATFORMS := linux/amd64,linux/arm64
 BUILD_ARGS :=
 ifneq ($(DIND_VERSION),)
 BUILD_ARGS += --build-arg DIND_VERSION=$(DIND_VERSION)
+endif
 ifneq ($(PYTHON_VERSIONS),)
 BUILD_ARGS += --build-arg PYTHON_VERSIONS="$(PYTHON_VERSIONS)"
 endif
