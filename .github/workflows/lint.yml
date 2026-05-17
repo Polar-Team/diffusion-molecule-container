@@ -1,4 +1,4 @@
-name: Lint Dockerfile
+name: Lint and Test
 
 on:
   pull_request:
@@ -16,3 +16,6 @@ jobs:
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
+
+      - name: Build and test container
+        run: make test-local

@@ -5,7 +5,7 @@ REGISTRY := ghcr.io
 ORG := polar-team
 IMAGE_NAME := diffusion-molecule-container
 # DIND_VERSION can be overridden: make publish DIND_VERSION=29.0.5-dind-alpine3.22
-DIND_VERSION ?= 29.1.4-dind-alpine3.23
+DIND_VERSION ?=
 VERSION ?= $(shell git describe --tags)
 # PYTHON_VERSIONS can be overridden: make publish ADDITIONAL_PYTHON_VERSIONS="3.12.0 3.11.0"
 PYTHON_VERSIONS ?=
@@ -30,7 +30,9 @@ IMAGE := $(REGISTRY)/$(ORG)/$(IMAGE_NAME)
 PLATFORMS := linux/amd64,linux/arm64
 
 # Build arguments
-BUILD_ARGS := --build-arg DIND_VERSION=$(DIND_VERSION)
+BUILD_ARGS :=
+ifneq ($(DIND_VERSION),)
+BUILD_ARGS += --build-arg DIND_VERSION=$(DIND_VERSION)
 ifneq ($(PYTHON_VERSIONS),)
 BUILD_ARGS += --build-arg PYTHON_VERSIONS="$(PYTHON_VERSIONS)"
 endif
