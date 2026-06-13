@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Added sqlite runtime dependency to resolve libsqlite3.so.0 error when running Ansible
+- Updated OpenSSL to 3.5.7-r0 for version consistency between runtime and development packages
+
 ## [1.0.8] - 2024-12-25
 
 ### Added
