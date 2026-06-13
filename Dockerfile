@@ -21,7 +21,7 @@ RUN apk add --no-cache --update \
   gcc=15.2.0-r2 \
   musl-dev=1.2.5-r23 \
   make=4.4.1-r3 \
-  openssl-dev=3.5.6-r0 \
+  openssl-dev=3.5.7-r0 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.3.2-r0 \
   readline-dev=8.3.1-r0 \
@@ -96,10 +96,11 @@ RUN apk add --no-cache --update \
   bash=5.3.3-r1 \
   musl=1.2.5-r23 \
   libffi=3.5.2-r0 \
-  openssl=3.5.6-r0 \
+  openssl=3.5.7-r0 \
   bzip2=1.0.8-r6 \
   zlib=1.3.2-r0  \
   readline=8.3.1-r0 \
+  sqlite=3.51.2-r0 \
   xz=5.8.3-r0 \
   tk=8.6.17-r0
 
