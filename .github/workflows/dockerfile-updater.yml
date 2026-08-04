@@ -79,7 +79,7 @@ jobs:
             local pkg="$1"
             local ver
             ver=$(curl --max-time 10 --connect-timeout 5 -sS \
-              "https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/$pkg" \
+              "https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/$pkg" \
               | grep -A3 'class="header">Version' \
               | grep -oP '(?<=<strong>)[\d]+\.[\d.]+(-r[\d]+)?(?=</strong>)' | head -1)
             if [ -z "$ver" ]; then
