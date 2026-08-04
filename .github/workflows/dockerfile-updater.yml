@@ -22,7 +22,7 @@ jobs:
         run: |
           echo "::group::Resolving upstream versions"
 
-          # Docker DinD — latest tag matching *-dind-alpine3.23
+          # Docker DinD — latest tag matching *-dind-alpine3.24
           DIND=$(curl --max-time 30 --connect-timeout 10 -sS \
             "https://hub.docker.com/v2/repositories/library/docker/tags/?page_size=100" \
             | jq -r '.results[].name' \
