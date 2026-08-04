@@ -26,7 +26,7 @@ jobs:
           DIND=$(curl --max-time 30 --connect-timeout 10 -sS \
             "https://hub.docker.com/v2/repositories/library/docker/tags/?page_size=100" \
             | jq -r '.results[].name' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-dind-alpine3\.23$' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-dind-alpine3\.24$' \
             | sort -V | tail -1)
           if [ -z "$DIND" ]; then
             echo "::error::Failed to resolve DinD version from Docker Hub"
