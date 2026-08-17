@@ -1,6 +1,6 @@
-ARG DIND_VERSION="29.5.3-dind-alpine3.23"
-ARG PYTHON_VERSIONS="3.13.14 3.12.13 3.11.15"
-ARG UV_VERSION="0.11.32"
+ARG DIND_VERSION="29.7.2-dind-alpine3.24"
+ARG PYTHON_VERSIONS="3.13.15 3.12.14 3.11.16"
+ARG UV_VERSION="0.11.33"
 
 
 FROM docker:${DIND_VERSION} AS builder
@@ -14,20 +14,20 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 
 # Install system dependencies and build tools for pyenv
 RUN apk add --no-cache --update \
-  libffi-dev=3.5.2-r0 \
-  git=2.52.0-r0 \
-  curl=8.20.0-r0 \
-  bash=5.3.3-r1 \
-  gcc=15.2.0-r2 \
-  musl-dev=1.2.5-r23 \
-  make=4.4.1-r3 \
+  libffi-dev=3.5.2-r1 \
+  git=2.54.0-r0 \
+  curl=8.21.0-r0 \
+  bash=5.3.9-r1 \
+  gcc=15.2.0-r5 \
+  musl-dev=1.2.6-r2 \
+  make=4.4.1-r4 \
   openssl-dev=3.5.7-r0 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.3.2-r0 \
-  readline-dev=8.3.1-r0 \
-  sqlite-dev=3.51.2-r0 \
+  readline-dev=8.3.3-r1 \
+  sqlite-dev=3.53.2-r0 \
   xz-dev=5.8.3-r0 \
-  tk-dev=8.6.17-r0 \
+  tk-dev=8.6.17-r1 \
   patch=2.8-r0
 
 # Set shell with pipefail for all RUN commands
@@ -92,17 +92,17 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 # Set shell with pipefail for all RUN commands
 SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN apk add --no-cache --update \
-  git=2.52.0-r0 \
-  bash=5.3.3-r1 \
-  musl=1.2.5-r23 \
-  libffi=3.5.2-r0 \
+  git=2.54.0-r0 \
+  bash=5.3.9-r1 \
+  musl=1.2.6-r2 \
+  libffi=3.5.2-r1 \
   openssl=3.5.7-r0 \
   bzip2=1.0.8-r6 \
   zlib=1.3.2-r0  \
-  readline=8.3.1-r0 \
+  readline=8.3.3-r1 \
   sqlite-libs=3.51.2-r0 \
   xz=5.8.3-r0 \
-  tk=8.6.17-r0
+  tk=8.6.17-r1
 
 #  Upgrade all installed packages to their latest versions
 
