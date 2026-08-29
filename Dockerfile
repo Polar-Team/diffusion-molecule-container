@@ -100,7 +100,7 @@ RUN apk add --no-cache --update \
   bzip2=1.0.8-r6 \
   zlib=1.3.2-r0  \
   readline=8.3.3-r1 \
-  sqlite-libs=3.51.2-r0 \
+  sqlite-libs=3.53.4-r0 \
   xz=5.8.3-r0 \
   tk=8.6.17-r1
 
