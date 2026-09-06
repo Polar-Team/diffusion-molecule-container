@@ -1,6 +1,6 @@
-ARG DIND_VERSION="29.7.2-dind-alpine3.24"
+ARG DIND_VERSION="29.8.0-dind-alpine3.24"
 ARG PYTHON_VERSIONS="3.13.15 3.12.14 3.11.16"
-ARG UV_VERSION="0.11.32"
+ARG UV_VERSION="0.11.33"
 
 
 FROM docker:${DIND_VERSION} AS builder
@@ -16,7 +16,7 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 RUN apk add --no-cache --update \
   libffi-dev=3.5.2-r1 \
   git=2.54.0-r0 \
-  curl=8.21.0-r0 \
+  curl=8.22.0-r0 \
   bash=5.3.9-r1 \
   gcc=15.2.0-r5 \
   musl-dev=1.2.6-r2 \
