@@ -26,7 +26,7 @@ RUN apk add --no-cache --update \
   zlib-dev=1.3.2-r0 \
   readline-dev=8.3.3-r1 \
   sqlite-dev=3.53.4-r0 \
-  xz-dev=5.8.3-r0 \
+  xz-dev=5.8.4-r0 \
   tk-dev=8.6.17-r1 \
   patch=2.8-r0
 
@@ -101,7 +101,7 @@ RUN apk add --no-cache --update \
   zlib=1.3.2-r0  \
   readline=8.3.3-r1 \
   sqlite-libs=3.53.4-r0 \
-  xz=5.8.3-r0 \
+  xz=5.8.4-r0 \
   tk=8.6.17-r1
 
 #  Upgrade all installed packages to their latest versions
