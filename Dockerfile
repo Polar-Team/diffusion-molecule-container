@@ -1,5 +1,5 @@
-ARG DIND_VERSION="29.8.1-dind-alpine3.24"
-ARG PYTHON_VERSIONS="3.13.15 3.12.14 3.11.16"
+ARG DIND_VERSION="29.8.2-dind-alpine3.24"
+ARG PYTHON_VERSIONS="3.13.16 3.12.15 3.11.17"
 ARG UV_VERSION="0.11.33"
 
 
@@ -21,7 +21,7 @@ RUN apk add --no-cache --update \
   gcc=15.2.0-r5 \
   musl-dev=1.2.6-r2 \
   make=4.4.1-r4 \
-  openssl-dev=3.5.8-r0 \
+  openssl-dev=3.5.9-r0 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.3.2-r0 \
   readline-dev=8.3.3-r1 \
@@ -96,7 +96,7 @@ RUN apk add --no-cache --update \
   bash=5.3.9-r1 \
   musl=1.2.6-r2 \
   libffi=3.5.2-r1 \
-  openssl=3.5.8-r0 \
+  openssl=3.5.9-r0 \
   bzip2=1.0.8-r6 \
   zlib=1.3.2-r0  \
   readline=8.3.3-r1 \
