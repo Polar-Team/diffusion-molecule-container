@@ -1,5 +1,5 @@
 ARG DIND_VERSION="29.9.2-dind-alpine3.24"
-ARG PYTHON_VERSIONS="3.13.17 3.12.15 3.11.17"
+ARG PYTHON_VERSIONS="3.13.18 3.12.16 3.11.18"
 ARG UV_VERSION="0.11.33"
 
 
@@ -16,7 +16,7 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 RUN apk add --no-cache --update \
   libffi-dev=3.5.2-r1 \
   git=2.54.0-r0 \
-  curl=8.22.0-r0 \
+  curl=8.23.0-r0 \
   bash=5.3.9-r1 \
   gcc=15.2.0-r5 \
   musl-dev=1.2.6-r3 \
