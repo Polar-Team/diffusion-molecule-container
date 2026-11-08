@@ -1,5 +1,5 @@
-ARG DIND_VERSION="29.9.2-dind-alpine3.24"
-ARG PYTHON_VERSIONS="3.13.17 3.12.15 3.11.17"
+ARG DIND_VERSION="29.9.3-dind-alpine3.24"
+ARG PYTHON_VERSIONS="3.13.18 3.12.16 3.11.18"
 ARG UV_VERSION="0.11.33"
 
 
@@ -16,19 +16,19 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 RUN apk add --no-cache --update \
   libffi-dev=3.5.2-r1 \
   git=2.54.0-r0 \
-  curl=8.22.0-r0 \
+  curl=8.23.0-r0 \
   bash=5.3.9-r1 \
   gcc=15.2.0-r5 \
   musl-dev=1.2.6-r3 \
   make=4.4.1-r4 \
   openssl-dev=3.5.9-r0 \
   bzip2-dev=1.0.8-r6 \
-  zlib-dev=1.3.2-r1 \
+  zlib-dev=1.4-r0 \
   readline-dev=8.3.3-r1 \
   sqlite-dev=3.53.4-r0 \
   xz-dev=5.8.4-r0 \
   tk-dev=8.6.17-r1 \
-  patch=2.8-r0
+  patch=2.8.1-r0
 
 # Set shell with pipefail for all RUN commands
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
@@ -98,7 +98,7 @@ RUN apk add --no-cache --update \
   libffi=3.5.2-r1 \
   openssl=3.5.9-r0 \
   bzip2=1.0.8-r6 \
-  zlib=1.3.2-r1  \
+  zlib=1.4-r0  \
   readline=8.3.3-r1 \
   sqlite-libs=3.53.4-r0 \
   xz=5.8.4-r0 \
