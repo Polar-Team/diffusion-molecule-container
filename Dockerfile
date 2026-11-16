@@ -15,7 +15,7 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 # Install system dependencies and build tools for pyenv
 RUN apk add --no-cache --update \
   libffi-dev=3.5.2-r1 \
-  git=2.54.0-r0 \
+  git=2.54.1-r0 \
   curl=8.23.0-r0 \
   bash=5.3.9-r1 \
   gcc=15.2.0-r5 \
@@ -92,7 +92,7 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 # Set shell with pipefail for all RUN commands
 SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN apk add --no-cache --update \
-  git=2.54.0-r0 \
+  git=2.54.1-r0 \
   bash=5.3.9-r1 \
   musl=1.2.6-r3 \
   libffi=3.5.2-r1 \
