@@ -1,4 +1,4 @@
-ARG DIND_VERSION="29.9.3-dind-alpine3.24"
+ARG DIND_VERSION="29.10.0-dind-alpine3.24"
 ARG PYTHON_VERSIONS="3.13.18 3.12.16 3.11.18"
 ARG UV_VERSION="0.11.33"
 
@@ -15,13 +15,13 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 # Install system dependencies and build tools for pyenv
 RUN apk add --no-cache --update \
   libffi-dev=3.5.2-r1 \
-  git=2.54.0-r0 \
+  git=2.54.1-r0 \
   curl=8.23.0-r0 \
   bash=5.3.9-r1 \
   gcc=15.2.0-r5 \
   musl-dev=1.2.6-r3 \
   make=4.4.1-r4 \
-  openssl-dev=3.5.9-r0 \
+  openssl-dev=3.5.9-r1 \
   bzip2-dev=1.0.8-r6 \
   zlib-dev=1.4-r0 \
   readline-dev=8.3.3-r1 \
@@ -92,11 +92,11 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 # Set shell with pipefail for all RUN commands
 SHELL ["/bin/sh", "-o", "pipefail", "-c"]
 RUN apk add --no-cache --update \
-  git=2.54.0-r0 \
+  git=2.54.1-r0 \
   bash=5.3.9-r1 \
   musl=1.2.6-r3 \
   libffi=3.5.2-r1 \
-  openssl=3.5.9-r0 \
+  openssl=3.5.9-r1 \
   bzip2=1.0.8-r6 \
   zlib=1.4-r0  \
   readline=8.3.3-r1 \
